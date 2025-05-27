@@ -1,1 +1,4 @@
-ros2_drones_ws/
+ros2_drones_ws/build/
+ros2_drones_ws/install/
+ros2_drones_ws/log/
+ros2_drones_ws/src/px4_msgs

@@ -78,6 +78,19 @@ def generate_launch_description():
                     output="screen"
                 )
             ]
+        ),
+
+        # Match Control Node starten
+        TimerAction(
+            period=10.0,
+            actions=[
+                Node(
+                    package='match_control',
+                    executable='main',
+                    name='match_control_node',
+                    output='screen',
+                )
+            ]
         )
 
 

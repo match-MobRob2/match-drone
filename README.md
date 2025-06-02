@@ -37,7 +37,7 @@ DONT_RUN=1 make px4_sitl gazebo-classic_iris
 ```bash
 sudo apt install -y ros-humble-mavros ros-humble-mavros-extras ros-humble-mavros-msgs
 sudo apt install -y geographiclib-tools
-sudo ros2 run mavros install_geographiclib_datasets.sh
+sudo geographiclib-get-geoids egm96-5
 ```
 
 ---

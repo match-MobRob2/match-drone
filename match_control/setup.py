@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'simple_offboard'
+package_name = 'match_control'
 
 setup(
     name=package_name,
@@ -14,13 +14,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='luca',
-    maintainer_email='luca@todo.todo',
+    maintainer_email='Luca0204@freenet.de',
     description='TODO: Package description',
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'main = simple_offboard.main:main'
+            'main = match_control.main:main',
         ],
     },
 )

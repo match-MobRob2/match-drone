@@ -1,8 +1,8 @@
-# Match Drohne
+# match Drohne
 
 ## 🚁 Overview
 
-**Match Drohne** aka Marvin the Seagull.
+**match Drohne** aka Marvin the Seagull.
 
 ![Marvin](marvin.jpg)
 
@@ -20,7 +20,7 @@ cd /path/to/your/ros2_ws/src
 ### 2. Clone This Repository
 
 ```bash
-git clone https://github.com/Luca0204/Match-Drohne
+git clone https://github.com/Luca0204/Match-Drohne .
 ```
 
 ### 3. PX4 Setup (10–15 minutes)

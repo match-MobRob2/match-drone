@@ -2,7 +2,10 @@
 
 ## 🚁 Overview
 
-**Match Drohne** is a ROS 2-based drone project. This repository contains all necessary code and instructions to get started quickly.
+**Match Drohne** aka Marvin the Seagull.
+
+![Marvin](marvin.jpg)
+
 
 ---
 

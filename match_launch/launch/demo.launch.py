@@ -39,16 +39,16 @@ def generate_launch_description():
         TimerAction(
             period=4.0,
             actions=[
-                ExecuteProcess(
-                    cmd=[
-                        "bash", "-c",
-                        f"source {px4_dir}/Tools/simulation/gazebo-classic/setup_gazebo.bash {px4_dir} {px4_dir}/build/px4_sitl_default && "
-                        f"gz model --verbose "
-                        f"--spawn-file {px4_dir}/Tools/simulation/gazebo-classic/sitl_gazebo-classic/models/iris/iris.sdf "
-                        "--model-name match_drohne -x 1.01 -y 0.98 -z 0.83"
-                    ],
-                    output="screen"
-                )
+            ExecuteProcess(
+                cmd=[
+                "bash", "-c",
+                f"source {px4_dir}/Tools/simulation/gazebo-classic/setup_gazebo.bash {px4_dir} {px4_dir}/build/px4_sitl_default && "
+                f"gz model --verbose "
+                f"--spawn-file $(ros2 pkg prefix match_models)/share/match_models/urdf/iris.sdf "
+                "--model-name match_drohne -x 1.01 -y 0.98 -z 0.83"
+                ],
+                output="screen"
+            )
             ]
         ),
 

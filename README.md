@@ -2,10 +2,9 @@
 
 ## 🚁 Overview
 
-**match Drohne** aka Marvin the Seagull.
+**Match Drohne** — aka. Marvin the Seagull.
 
 ![Marvin](marvin.jpg)
-
 
 ---
 
@@ -17,7 +16,7 @@
 cd /path/to/your/ros2_ws/src
 ```
 
-### 2. Clone This Repository
+### 2. Clone the Repository
 
 ```bash
 git clone https://github.com/Luca0204/Match-Drohne .
@@ -54,4 +53,6 @@ ros2 launch match_launch demo.launch.py
 
 ---
 
+## 🛠️ Custom Drone Model Setup
 
+For instructions on setting up the custom drone model, see [match_models/Drone_Guide.md](match_models/Drone_Guide.md).

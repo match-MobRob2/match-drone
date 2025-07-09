@@ -44,7 +44,7 @@ Für den Betrieb der Drohne wird QGroundControl benötigt. Damit lässt sich Tel
 
 <strong>Wichtig:</strong> Ohne eine verbundene QGroundControl-Instanz hebt die Drohne aus Sicherheitsgründen nicht ab. 
 
-[QGroundControl Installation Guide](docs/QGroundControl_Guide.md)
+[QGroundControl Installation Guide](docs/QGroundControl.md)
 
 ### 6. Install Custom Models
 Damit eigene Drohnenmodelle genutzt werden können, müssen einige Dateien in der Simulationsumgebung angepasst bzw. ergänzt werden. Zum Glück hat ein kleiner Tastatur-Affe (ich) dafür ein Skript gemacht:

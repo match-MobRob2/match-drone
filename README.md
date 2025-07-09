@@ -39,6 +39,11 @@ sudo apt install -y geographiclib-tools
 sudo geographiclib-get-geoids egm96-5
 ```
 
+### 5. Install QGroundControl
+Zur Verwendung der Drohne ist außerdem "QGroundControl" erforderlich. Mit dieser Software lässt sich Telemetrie der Drohne Empfangen, aber auch Commands an die Drohne senden. Die Software für auch hinterher für den Realen Betrieb der Drohne verwendet. 
+
+[QGroundControl Installation Guide](docs/QGroundControl_Guide.md)
+
 ---
 
 ## 🚀 Running the Demo
@@ -48,7 +53,7 @@ From the root of your workspace:
 ```bash
 colcon build --symlink-install
 source install/setup.bash
-ros2 launch match_launch demo.launch.py
+ros2 launch match_launch x500.launch.py
 ```
 
 ---

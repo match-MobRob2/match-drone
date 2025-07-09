@@ -1,6 +1,6 @@
 cp misc/* ../PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/
 
-cp -r urdf/* ../PX4-Autopilot/Tools/simulation/gz/models/
+cp -r sdf/* ../PX4-Autopilot/Tools/simulation/gz/models/
 
 sed -i '/# \[22000, 22999\] Reserve for custom models/q' ../PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/CMakeLists.txt
 

@@ -178,7 +178,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='match_control',
-                    executable='main',
+                    executable='abheben_vor_landen',
                     name='match_control_node',
                     output='screen',
                 )

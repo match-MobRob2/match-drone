@@ -28,15 +28,17 @@ git clone https://github.com/Luca0204/Match-Drohne .
 git clone https://github.com/PX4/PX4-Autopilot.git --recursive
 cd PX4-Autopilot
 touch COLCON_IGNORE
+bash ./Tools/setup/ubuntu.sh
 DONT_RUN=1 make px4_sitl gz_x500
 ```
 
 ### 4. Install MAVROS
 
 ```bash
-sudo apt install -y ros-humble-mavros ros-humble-mavros-extras ros-humble-mavros-msgs
-sudo apt install -y geographiclib-tools
-sudo geographiclib-get-geoids egm96-5
+cd /path/to/your/ros2_ws/
+sudo apt-get install ros-${ROS_DISTRO}-mavros ros-${ROS_DISTRO}-mavros-extras ros-${ROS_DISTRO}-mavros-msgs
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+sudo bash ./install_geographiclib_datasets.sh
 ```
 
 ### 5. Install QGroundControl
@@ -58,6 +60,7 @@ chmod +x install_models.sh
 Anschließend muss der Simulator erneut gebaut werden. Das dauert diesmal nicht mehr so lange:
 
 ```bash
+cd /path/to/your/ros2_ws/src/PX4_Autopilot
 DONT_RUN=1 make px4_sitl gz_x500
 ```
 

@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'main = match_control.main:main',
+            'abheben_vor_landen = match_control.abheben_vor_landen:main',
         ],
     },
 )

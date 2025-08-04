@@ -117,7 +117,7 @@ def generate_launch_description():
                 ExecuteProcess(
                     name="gazebo_client",
                     cmd=[
-                        "gz", "sim", "-g"
+                        "LIBGL_ALWAYS_SOFTWARE=1", "gz", "sim", "-g", "-v 4"
                     ],
                     output="screen"
                 ),
@@ -178,7 +178,7 @@ def generate_launch_description():
             actions=[
                 Node(
                     package='match_control',
-                    executable='main',
+                    executable='abheben_vor_landen',
                     name='match_control_node',
                     output='screen',
                 )

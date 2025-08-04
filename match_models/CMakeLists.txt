@@ -26,7 +26,7 @@ if(BUILD_TESTING)
 endif()
 
 install(
-  DIRECTORY sdf meshes worlds
+  DIRECTORY sdf worlds
   DESTINATION share/${PROJECT_NAME}
 )
 

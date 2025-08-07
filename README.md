@@ -19,7 +19,7 @@ cd /path/to/your/ros2_ws/src
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/Luca0204/Match-Drohne .
+git clone https://github.com/match-MobRob2/match-drone/ .
 ```
 
 ### 3. PX4 Setup (10–15 minutes)

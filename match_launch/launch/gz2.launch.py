@@ -71,8 +71,8 @@ def generate_launch_description():
                     output="screen",
                     shell=True,
                     additional_env={
-                        "PX4_SYS_AUTOSTART": "4001",
-                        "PX4_SIM_MODEL": "x500",
+                        "PX4_SYS_AUTOSTART": "40011",
+                        "PX4_SIM_MODEL": "match_drohne",
                         "PX4_SIMULATOR": "GZ",
                         "VERBOSE": "1",
                         "PX4_GZ_STANDALONE": "true",
@@ -117,11 +117,7 @@ def generate_launch_description():
                 ExecuteProcess(
                     name="gazebo_client",
                     cmd=[
-<<<<<<< HEAD
-                        "gz", "sim", "-g", "-v 4"
-=======
-                        "LIBGL_ALWAYS_SOFTWARE=1", "gz", "sim", "-g", "-v 4"
->>>>>>> eccdc98eec7da04dd406859755d6776d561b75d9
+                        "gz", "sim", "-g"
                     ],
                     output="screen"
                 ),

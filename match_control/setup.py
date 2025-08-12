@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+<<<<<<< HEAD
             'drone_services = match_control.drone_services:main',
             'demo_takeoff_land = match_control.demo_takeoff_land:main',
             'demo_takeoff_forward_land = match_control.demo_takeoff_forward_land:main',
@@ -29,6 +30,9 @@ setup(
             'exercise_takeoff_forward_land = match_control.exercise_takeoff_forward_land:main',
             'exercise_takeoff_square_land = match_control.exercise_takeoff_square_land:main',
             'exercise_takeoff_circle_land = match_control.exercise_takeoff_circle_land:main',
+=======
+            'abheben_vor_landen = match_control.abheben_vor_landen:main',
+>>>>>>> eccdc98eec7da04dd406859755d6776d561b75d9
         ],
     },
 )

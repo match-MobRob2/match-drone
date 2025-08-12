@@ -3,7 +3,6 @@
 In dieser Aufgabe soll die Drohne abheben, zwei Meter nach vorne fliegen und sicher landen.
 
 ## Hinweise
-- Nutze den Service `is_ready` vor dem Start.
 - Plane die gewünschte Position relativ zur Startposition.
 
 ## Startbefehle

@@ -3,7 +3,6 @@
 Die Drohne soll abheben, einen Kreis fliegen und an einem definierten Punkt X wieder landen.
 
 ## Hinweise
-- Kontrolliere vor dem Start den Service `is_ready`.
 - Der Kreismittelpunkt kann die Startposition sein.
 - Nach dem Kreisflug sollte die Drohne zum Landepunkt navigieren.
 

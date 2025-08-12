@@ -117,7 +117,7 @@ def generate_launch_description():
                 ExecuteProcess(
                     name="gazebo_client",
                     cmd=[
-                        "LIBGL_ALWAYS_SOFTWARE=1", "gz", "sim", "-g", "-v 4"
+                        "gz", "sim", "-g", "-v 4"
                     ],
                     output="screen"
                 ),

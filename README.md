@@ -86,3 +86,7 @@ ros2 launch match_launch x500.launch.py
 For instructions on setting up the custom drone model, see [match_models/Drone_Guide.md](match_models/Drone_Guide.md).
 
 
+## 🎓 Tutorial-Aufgaben
+
+Eine Sammlung von Übungsmissionen mit Startcode und Musterlösungen findest du unter [docs/tutorials/README.md](docs/tutorials/README.md).
+

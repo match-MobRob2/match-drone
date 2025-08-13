@@ -35,7 +35,7 @@ if ! command -v ros2 &> /dev/null; then
     sudo apt update
 
     sudo apt upgrade
-
+    sudo apt install python3-colcon-common-extensions
     sudo apt install ros-jazzy-desktop
 
     echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc

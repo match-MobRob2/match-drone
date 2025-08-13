@@ -15,7 +15,7 @@ Installiert ROS2 (falls nicht vorhanden) und alles andere.
 cd /path/to/your/ros2_ws/src
 git clone https://github.com/match-MobRob2/match-drone/ .
 cd misc/
-./tobi.sh
+./setup.sh
 ```
 
 ---

@@ -8,6 +8,9 @@
 ## Installation mit Setup Skript
 <img src="docs/img/tobi.jpg" width="200">
 
+Installiert ROS2 (falls nicht vorhanden) und alles andere.
+**Wichtig: Nur für Ubuntu 24.04**
+
 ```bash 
 cd /path/to/your/ros2_ws/src
 git clone https://github.com/match-MobRob2/match-drone/ .

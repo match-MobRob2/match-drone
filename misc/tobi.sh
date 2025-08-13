@@ -56,7 +56,7 @@ git clone https://github.com/PX4/PX4-Autopilot.git --recursive
 cd PX4-Autopilot
 touch COLCON_IGNORE
 bash ./Tools/setup/ubuntu.sh
-make px4_sitl gz_x500
+make px4_sitl 
 echo "PX4-Autopilot installation completed."
 echo ""
 

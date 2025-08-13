@@ -8,7 +8,7 @@
 
 ---
 ## Installation mit Setup Skript
-![Tobi](docs/img/tobi.jpg | width=200)
+<img src="docs/img/tobi.jpg" width="200">
 ```bash 
 cd /path/to/your/ros2_ws/src
 git clone https://github.com/match-MobRob2/match-drone/ .
@@ -19,7 +19,8 @@ cd misc/
 ---
 
 ## 📦 Installations in einzel Schritten
-![Luca](docs/img/luca.jpg | width=200)
+<img src="docs/img/luca.jpg" width="200">
+
 
 ### 1. Navigate to the `src` Directory
 

@@ -38,7 +38,7 @@ if ! command -v ros2 &> /dev/null; then
 
     sudo apt install ros-jazzy-desktop
 
-    source /opt/ros/jazzy/setup.bash
+    echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
     source ~/.bashrc
     # Installation commands go here
     echo "ROS 2 installation completed."

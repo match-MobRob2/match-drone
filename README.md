@@ -3,8 +3,7 @@
 ## 🚁 Overview
 
 **Match Drohne** — aka. Marvin the Seagull.
-<img src="docs/img/marvin.jpg" width="500">
-
+<img src="docs/img/marvin.jpg" width="500" style="float:left">
 ---
 ## Installation mit Setup Skript
 <img src="docs/img/tobi.jpg" width="200">

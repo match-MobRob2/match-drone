@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<robot name="lidar_sensor" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Expected params -->
+  <xacro:macro name="lidar_sensor" params="parent_link frame_name xyz rpy 
+                                   topic_name:=/scan
+                                   mesh_uri:=package://match_slam/description/meshes/livox_mid-360.stl
+                                   mesh_scale:='0.001 0.001 0.001'">
+  
+    <!-- LiDAR link + fixed joint to parent -->
+    <link name="${frame_name}">
+      <inertial>
+        <mass value="0.2"/>
+        <origin xyz="0 0 0"/>
+        <inertia ixx="0.001" iyy="0.001" izz="0.001" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+
+      <!-- Real MID-360 visual -->
+      <visual>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi}"/>
+        <geometry>
+          <mesh filename="${mesh_uri}" scale="${mesh_scale}"/>
+        </geometry>
+      </visual>
+
+      <!-- <visual>
+        <geometry>
+          <cylinder radius="0.035" length="0.05"/>
+        </geometry>
+      </visual> -->
+
+        <!-- Keep physics light: simple collision -->
+      <collision>
+        <!-- <origin xyz="0 0 0" rpy="0 0 0"/> -->
+        <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi}"/>
+        <geometry>
+          <!-- adjust radius/length to match sensor bounds -->
+          <cylinder radius="0.035" length="0.05"/>
+        </geometry>
+      </collision>
+
+    </link>
+
+    <joint name="${frame_name}_mount" type="fixed">
+      <parent link="${parent_link}"/>
+      <child  link="${frame_name}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/>
+    </joint>
+
+  </xacro:macro>
+</robot>

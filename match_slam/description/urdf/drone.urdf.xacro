@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<robot name="drone" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Public args -->
+  <xacro:arg name="robot_name" default="match_drohne1"/>
+  <xacro:arg name="namespace"  default=""/>
+  <xacro:arg name="lidar_parent" default="base_link"/>
+  <xacro:arg name="lidar_xyz"    default="0 0 0.075"/>
+  <xacro:arg name="lidar_rpy"    default="0 0 0"/>
+  <xacro:arg name="lidar_frame"  default="lidar_link"/>
+  <xacro:arg name="lidar_topic"  default="/scan"/>
+  <xacro:arg name="camera_parent" default="base_link"/>
+  <xacro:arg name="camera_xyz"    default="0.12 0 0.10"/>
+  <xacro:arg name="camera_rpy"    default="0 0 0"/>
+  <xacro:arg name="camera_frame"  default="camera_link"/>
+  <xacro:arg name="camera_topic"  default="/camera_out"/>
+
+  <!-- Include submodules -->
+  <xacro:include filename="drone_core.xacro"/>
+  <xacro:include filename="lidar.xacro"/>
+  <xacro:include filename="camera.xacro"/>
+
+  <!-- Instantiate core -->
+  <xacro:drone_core
+      robot_name="$(arg robot_name)"
+      namespace="$(arg namespace)"/>
+
+  <!-- Mount LiDAR -->
+  <xacro:lidar_sensor
+      parent_link="$(arg lidar_parent)"
+      frame_name ="$(arg lidar_frame)"
+      xyz="$(arg lidar_xyz)"
+      rpy="$(arg lidar_rpy)"
+      topic_name="$(arg lidar_topic)"
+      mesh_uri="package://match_slam/description/meshes/livox_mid-360.stl"
+      mesh_scale="0.001 0.001 0.001" />  <!-- use 0.001 if STL is in millimeters -->
+
+  <!-- Mount Camera -->
+  <!-- <xacro:camera_sensor
+      parent_link="$(arg camera_parent)"
+      frame_name="$(arg camera_frame)"
+      xyz="$(arg camera_xyz)"
+      rpy="$(arg camera_rpy)"
+      topic_name="$(arg camera_topic)"
+      mesh_uri=""
+      mesh_scale="0.001 0.001 0.001"
+      add_optical="true"/> -->
+
+</robot>

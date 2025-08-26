@@ -18,7 +18,7 @@ def generate_launch_description():
     match_models_path = get_package_share_directory("match_models")
     empty_world = f"{match_models_path}/worlds/empty.sdf"
     beste_welt_world = f"{match_models_path}/worlds/beste_welt.sdf"
-    px4_world = f"{px4_dir}/Tools/simulation/gz/worlds/walls.sdf"
+    px4_world = f"{px4_dir}/Tools/simulation/gz/worlds/forest.sdf"
 
     PX4_HOME_LAT = "52.42449457140792"
     PX4_HOME_LON = "9.620245153463955"
@@ -73,34 +73,39 @@ def generate_launch_description():
         output="screen"
     )
 
-    # 2) ROS bridge
-    ros_bridge = TimerAction(
+    # 2) ROS bridge: (A)Early TF+clock bridge (t=1s)
+    bridge_tf_clock = TimerAction(
         period=1.0,
-        actions=[
-            Node(
-                package='ros_gz_bridge',
-                executable='parameter_bridge',
-                name="gz_bridge_points",
-                arguments=[
-                    '/gz_scan/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
-                    '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
-                    '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
-                    '/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model',
-                    '/tf@tf2_msgs/msg/TFMessage@gz.msgs.Pose_V',
-                    '/livox/imu@sensor_msgs/msg/Imu@gz.msgs.IMU',
-                    # '/camera/image@sensor_msgs/msg/Image@gz.msgs.Image',
-                    # '/camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo'
-                ],
-                remappings=[('/gz_scan', '/scan')],
-                parameters=[{'use_sim_time': True}],
-                output="screen",
-            )
-        ]
+        actions=[Node(
+            package='ros_gz_bridge', executable='parameter_bridge', name='gz_bridge_tf_clock',
+            arguments=[
+                '/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock',
+                '/tf@tf2_msgs/msg/TFMessage@gz.msgs.Pose_V',
+            ],
+            parameters=[{'use_sim_time': True}], output='screen'
+        )]
     )
+
+    # (B) Delayed sensors bridge (t=4.5s)
+    bridge_sensors = TimerAction(
+        period=4.5,
+        actions=[Node(
+            package='ros_gz_bridge', executable='parameter_bridge', name='gz_bridge_sensors',
+            arguments=[
+                '/gz_scan/points@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked',
+                '/odom@nav_msgs/msg/Odometry@gz.msgs.Odometry',
+                '/joint_states@sensor_msgs/msg/JointState@gz.msgs.Model',
+                '/livox/imu@sensor_msgs/msg/Imu@gz.msgs.IMU',
+            ],
+            remappings=[('/gz_scan','/scan')], parameters=[{'use_sim_time': True}],
+            output='screen'
+        )]
+    )
+
 
     # 3) PointCloud+IMU topic name fixes
     pcl_topic_fix_node = TimerAction(
-        period=3.5,
+        period=5.0,
         actions=[
             Node(
                 package='sim_utils',
@@ -113,7 +118,7 @@ def generate_launch_description():
     )
 
     imu_topic_fix_node = TimerAction(
-        period=3.5,
+        period=5.0,
         actions=[
             Node(
                 package='sim_utils',
@@ -153,10 +158,28 @@ def generate_launch_description():
             ),
         ]
     )
-
+    
+    fast_lio2 = TimerAction(
+        period=6.0,
+        actions=[
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(
+                    PathJoinSubstitution([
+                        FindPackageShare('fast_lio'), 'launch', 'mapping.launch.py'])
+                ),
+                launch_arguments={
+                    'use_sim_time': 'true',
+                    'config_path': PathJoinSubstitution([FindPackageShare('match_slam'), 'config']),
+                    'config_file': 'fast_lio2_params.yaml',   
+                    'rviz': 'false'                          
+                }.items()
+            )
+        ]
+    )
+    
     # 6) PX4 SITL - after Gazebo is up
     px4_sitl = TimerAction(
-        period=3.0,
+        period=3.5,
         actions=[
             ExecuteProcess(
                 name="px4_sitl",
@@ -173,7 +196,7 @@ def generate_launch_description():
                     "PX4_HOME_LAT": PX4_HOME_LAT,
                     "PX4_HOME_LON": PX4_HOME_LON,
                     "PX4_HOME_ALT": PX4_HOME_ALT,
-                    "PX4_GZ_WORLD": "walls",   
+                    "PX4_GZ_WORLD": "forest",   
                     "PX4_GZ_WORLDS": match_models_path,  # so Gazebo can find worlds/garbsen.sdf
                     "GZ_SIM_RESOURCE_PATH": gz_resource_path, 
                 }
@@ -197,7 +220,7 @@ def generate_launch_description():
 
     # 8) Match control node - after everything is ready
     control_node = TimerAction(
-        period=30.0,
+        period=50.0,
         actions=[
             Node(
                 package='match_control',
@@ -209,9 +232,26 @@ def generate_launch_description():
         ]
     )
 
+    tf_map_to_camera_init = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='tf_map_to_camera_init',
+        arguments=['0','0','0','0','0','0','map','camera_init'],
+        parameters=[{'use_sim_time': True}],
+        output='screen'
+    )
+
+    odom_bridge = Node(
+        package='sim_utils',
+        executable='odom_bridge',
+        name='odom_bridge',
+        parameters=[{'use_sim_time': True}],
+        output='screen'
+    )
+
     # 9) --- RViz2 ---
     rviz2 = TimerAction(
-        period=5.0,
+        period=7.5,
         actions=[
             Node(
                 package='rviz2',
@@ -224,14 +264,37 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        # t = 0.0 — TF sources first
         gazebo_server,
-        ros_bridge,
+        rsp_node,
+        tf_map_to_camera_init,
+        odom_bridge,
+
+        # t = 1.0 — bridge clock + TF from Gazebo
+        bridge_tf_clock,
+
+        # t = 2.0 — Gazebo GUI (optional)
+        gazebo_client,
+
+        # t = 3.0 — PX4 SITL
+        px4_sitl,
+
+        # t = 4.5 — bridge sensors (lidar/imu/odom/joints)
+        bridge_sensors,
+
+        # t = 5.0 — topic/frame fixers
         pcl_topic_fix_node,
         imu_topic_fix_node,
-        rsp_node,
-        gazebo_client,
-        px4_sitl,
-        mavros_node,
-        control_node,
+
+        # t = 6.0 — FAST-LIO2
+        # fast_lio2,
+
+        # t = 7.5 — RViz2
         rviz2,
+
+        # t = 10.0 — MAVROS
+        mavros_node,
+
+        # t = 35.0 — your control node
+        # control_node,
     ])

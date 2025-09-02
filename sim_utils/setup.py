@@ -22,7 +22,7 @@ setup(
         'console_scripts': [
             'pc_frame_fix = sim_utils.pc_frame_fix:main',
             'imu_frame_fix = sim_utils.imu_frame_fix:main',
-            'odom_bridge = match_control.odom_bridge:main',
+            'odom_bridge = sim_utils.odom_bridge:main',
         ],
     },
 )

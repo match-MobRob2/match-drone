@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'simple_flight = match_control.simple_flight:main',
+            'teleop_driven_flight = match_control.teleop_driven_flight:main',
             'drone_services = match_control.drone_services:main',
             'demo_takeoff_land = match_control.demo_takeoff_land:main',
             'demo_takeoff_forward_land = match_control.demo_takeoff_forward_land:main',

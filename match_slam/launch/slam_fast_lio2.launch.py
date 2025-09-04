@@ -242,7 +242,8 @@ def generate_launch_description():
                 executable='rviz2',
                 name='rviz2',
                 output='screen',
-                parameters=[{'use_sim_time': True}]
+                parameters=[{'use_sim_time': True}],
+                arguments=['-d', PathJoinSubstitution([pkg_share, 'config', 'config_fast_lio2.rviz'])],
             )
         ]
     )

@@ -3,7 +3,7 @@ WIRING FAST-LIO2
 -------------------------
 
 (Terminal1) ros2 launch match_slam slam_fast_lio2.launch.py
-(Terminal2) ros2 run fast_lio fastlio_mapping --ros-args --params-file src/match-		    drone/match_slam/config/fast_lio2_params.yaml --log-level fast_lio:=debug
+(Terminal2) ros2 run fast_lio fastlio_mapping --ros-args --params-file src/match-drone/match_slam/config/fast_lio2_params.yaml --log-level fast_lio:=debug
 /or/
 ros2 launch fast_lio mapping.launch.py config_path:=/home/daghbeji/match_ws/src/match-drone/match_slam/config config_file:=fast_lio2_params.yaml rviz:=false
 

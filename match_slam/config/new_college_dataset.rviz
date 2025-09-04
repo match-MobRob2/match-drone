@@ -1,0 +1,22 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+
+Visualization Manager:
+  Global Options:
+    Fixed Frame: map
+  Displays:
+    - Name: RobotModel
+      Class: rviz_default_plugins/RobotModel
+      Enabled: true
+    - Name: SLAM Map
+      Class: rviz_default_plugins/PointCloud2
+      Topic: /lio_map
+      Enabled: true
+    - Name: GT Map
+      Class: rviz_default_plugins/PointCloud2
+      Topic: /gt_cloud
+      Enabled: true
+    - Name: TF
+      Class: rviz_default_plugins/TF
+      Enabled: true

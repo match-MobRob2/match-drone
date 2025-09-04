@@ -1,6 +1,5 @@
 /**:
     ros__parameters:
-
         feature_extract_enable: true
         point_filter_num: 0
         max_iteration: 3
@@ -38,8 +37,8 @@
             det_range:     20.0          # match SIM max range
             # extrinsic_est_en:  true      # true: enable the online estimation of IMU-LiDAR extrinsic
             extrinsic_est_en:  false     
-            # extrinsic_T: [ -0.011, -0.02329, 0.04412 ]
-            extrinsic_T: [0.0, 0.0, 0.0]
+            # extrinsic_T: [0.0, 0.0, 0.0]
+            extrinsic_T: [ -0.011, -0.02329, 0.04412 ]
             extrinsic_R: [ 1., 0., 0.,
                             0., 1., 0.,
                             0., 0., 1.]
@@ -49,10 +48,10 @@
             effect_map_en: false         # true: publish Effects
             map_en: true                 # true: publish Map cloud
             scan_publish_en:  true       # false: close all the point cloud output
-            dense_publish_en: true      # false: low down the points number in a global-frame point clouds scan.
+            dense_publish_en: true       # false: low down the points number in a global-frame point clouds scan.
             scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
 
         pcd_save:
-            pcd_save_en: false
-            interval: -1                 # how many LiDAR frames saved in each pcd file; 
+            pcd_save_en: true
+            interval: 5                 # how many LiDAR frames saved in each pcd file; 
                                         # -1 : all frames will be saved in ONE pcd file, may lead to memory crash when having too much frames.

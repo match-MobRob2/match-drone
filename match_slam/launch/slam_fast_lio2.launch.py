@@ -3,7 +3,7 @@ from launch.actions import ExecuteProcess, TimerAction, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
-from launch.substitutions import PathJoinSubstitution, EnvironmentVariable, TextSubstitution
+from launch.substitutions import PathJoinSubstitution, EnvironmentVariable, TextSubstitution, LaunchConfiguration
 from launch_ros.substitutions import FindPackageShare
 
 import os
@@ -19,6 +19,7 @@ def generate_launch_description():
     empty_world = f"{match_models_path}/worlds/empty.sdf"
     beste_welt_world = f"{match_models_path}/worlds/beste_welt.sdf"
     px4_world = f"{px4_dir}/Tools/simulation/gz/worlds/forest.sdf"
+    px4_world_absolute = "/home/daghbeji/match_ws/src/PX4-Autopilot/Tools/simulation/gz/worlds/forest.sdf"
 
     PX4_HOME_LAT = "52.42449457140792"
     PX4_HOME_LON = "9.620245153463955"
@@ -220,7 +221,7 @@ def generate_launch_description():
 
     # 8) Match control node - after everything is ready
     control_node = TimerAction(
-        period=50.0,
+        period=35.0,
         actions=[
             Node(
                 package='match_control',
@@ -230,6 +231,52 @@ def generate_launch_description():
                 # parameters=[{'use_sim_time': True}]
             )
         ]
+    )
+
+    # 9) --- RViz2 ---
+    rviz2 = TimerAction(
+        period=7.5,
+        actions=[
+            Node(
+                package='rviz2',
+                executable='rviz2',
+                name='rviz2',
+                output='screen',
+                parameters=[{'use_sim_time': True}]
+            )
+        ]
+    )
+
+    ############################################# FIXES
+
+    ground_truth_map_converter = TimerAction(
+        period=4.7,
+        actions=[
+            Node(
+                package='sim_utils',
+                executable='sdf_to_pcl_converter',
+                name='sdf_to_pcl_converter',
+                output='screen',
+                emulate_tty=True,
+            #     parameters=[{'sdf_file': px4_world_absolute}]
+                parameters=[
+                    {
+                        'sdf_world': px4_world_absolute,          
+                        'fuel_cache_roots': ['~/.gz/fuel'],           # list[str]
+                        'points_per_mesh': 3000,                      
+                        'publish_rate_hz': 1.0,                 
+                        'frame_id': 'map',                            # str
+                    }
+                ],
+            )
+        ]
+    )
+
+    ground_truth_map_converter_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='map_gt_to_map',
+        arguments=['0','0','0','0','0','0','map_gt','map'],  # xyz + rpy + parent + child
     )
 
     tf_map_to_camera_init = Node(
@@ -247,20 +294,6 @@ def generate_launch_description():
         name='odom_bridge',
         parameters=[{'use_sim_time': True}],
         output='screen'
-    )
-
-    # 9) --- RViz2 ---
-    rviz2 = TimerAction(
-        period=7.5,
-        actions=[
-            Node(
-                package='rviz2',
-                executable='rviz2',
-                name='rviz2',
-                output='screen',
-                parameters=[{'use_sim_time': True}]
-            )
-        ]
     )
 
     return LaunchDescription([
@@ -281,7 +314,11 @@ def generate_launch_description():
 
         # t = 4.5 — bridge sensors (lidar/imu/odom/joints)
         bridge_sensors,
-
+        
+        # t = 4.7 — SDF map → 3D-pointcloud
+        # ground_truth_map_converter,
+        # ground_truth_map_converter_tf,
+        
         # t = 5.0 — topic/frame fixers
         pcl_topic_fix_node,
         imu_topic_fix_node,

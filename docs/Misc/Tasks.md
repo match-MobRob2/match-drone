@@ -4,7 +4,6 @@
 * rosbag + record screen 
 
 * REAMDE für fast-lio2 dokumentieren. Falls möglich .sh files 
-* requirements.txt
 * PCL speichern (Lösung für Speciherplatz), welche lösungen gibt es? Voxelbased maps?
 * check ground truth gazebo
 * Lokalisierung

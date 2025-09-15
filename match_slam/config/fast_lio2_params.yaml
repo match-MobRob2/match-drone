@@ -1,15 +1,13 @@
 /**:
     ros__parameters:
         feature_extract_enable: true
-        point_filter_num: 0
+        point_filter_num: 1
         max_iteration: 3
-        # filter_size_surf: 0.5
-        # filter_size_map: 0.5
         filter_size_surf: 0.25
         filter_size_map: 0.25
-        cube_side_length: 1000.0
+        cube_side_length: 100.0
         runtime_pos_log_enable: false
-        map_file_path: "./test.pcd"
+        map_file_path: "./forest.pcd"
 
         common:
             lid_topic:  "/scan_points_fixed"
@@ -32,9 +30,8 @@
             gyr_cov: 0.1
             b_acc_cov: 0.0001
             b_gyr_cov: 0.0001
-            fov_degree:    360.0
-            # det_range:     100.0
-            det_range:     20.0          # match SIM max range
+            fov_degree:    60.0
+            det_range:     50.0          
             # extrinsic_est_en:  true      # true: enable the online estimation of IMU-LiDAR extrinsic
             extrinsic_est_en:  false     
             # extrinsic_T: [0.0, 0.0, 0.0]
@@ -48,7 +45,7 @@
             effect_map_en: false         # true: publish Effects
             map_en: true                 # true: publish Map cloud
             scan_publish_en:  true       # false: close all the point cloud output
-            dense_publish_en: true       # false: low down the points number in a global-frame point clouds scan.
+            dense_publish_en: false       # false: low down the points number in a global-frame point clouds scan.
             scan_bodyframe_pub_en: true  # true: output the point cloud scans in IMU-body-frame
 
         pcd_save:

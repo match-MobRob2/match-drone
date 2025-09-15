@@ -1,5 +1,0 @@
-cmake
-eigen
-PCL
-pandas
-numpy

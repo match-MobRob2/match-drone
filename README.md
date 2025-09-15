@@ -1,10 +1,10 @@
 This branch was established to integrate, test, and benchmark state-of-the-art SLAM (Self Localization and Mapping) algorithms for drones in simulation with the goal of mapping an indoor production environment.
 
-System Architecture
+🖧 System Architecture 
 -----
 ![alt text](system_architecture.png)
 
-Software Requirements
+💻 Software Requirements
 -----
 
 * **Ubuntu 24.04 LTS Noble**
@@ -14,32 +14,31 @@ Software Requirements
 * **PX4 firmware** installation on Linux: Autopilot software which includes the software-in-the-loop firmware
 * **MAVROS** package: Autopilot ROS interface
 * **QGroundControl** 
+* **teleop_twist_keyboard** package: Teleoperation ROS interface. For reference, see the documentation under: [docs/teleop_docs.py]
+* **SLAM package**: FAST-LIO2 (https://github.com/Ericsii/FAST_LIO_ROS2)
 
-* **teleop_twist_keyboard** package: Teleoperation ROS interface
-Check out this documentation for keyboard control (/keyboard_docs.md)
-* **SLAM package** 
-
-Installation Guide
+⚙️ Installation Guide
 -----
-### For a one-shot installation, please launch this bash script
+### For a one-time setup, please launch this bash script (Still in progress 🚧🛠️🔜)
 ```bash
-    cd misc/
+    cd setup/
     ./setup_entire_workspace.sh
 ```
 ### For a step-by-step installation, follow the following commands:
 
 1. First of all clone the repository to your local directory:
 ```bash
-    cd /path/to/your/ros2_ws/src
+    cd ros2_ws/src
     git clone https://github.com/match-MobRob2/match-drone/ .    
+    git checkout dev_slam
 ```
 
-2. For installing ROS2 jazzy, PX4, MAVROS, QGroundControl and load custom models to PX4 use this script at () or a step-by-step installation guide on the main branch of the repository (/main/READNE.md):
+2. For installing **ROS2 jazzy**, **PX4**, **MAVROS**, **QGroundControl** and load custom models to PX4 run the following bash script or follow a step-by-step installation guide on the main branch of the repository:
 ```bash
-    cd misc/
+    cd setup/
     ./setup.sh  
 ```
-- Everytime you modify the model.sdf under match_models, do the following to let PX4 know about the modifications:
+- **(Note)** Everytime you modify the **model.sdf** under "*/match_models*", do the following to let PX4 know about the modifications:
 ```bash
     cd ~/ros2_ws/src/match_models/
     ./install_models.sh
@@ -47,32 +46,32 @@ Installation Guide
 
 3. Install gazebo harmonic (https://gazebosim.org/docs/harmonic/install_ubuntu/):
 ```bash
-    cd misc/
+    cd setup/
     ./gazebo_harmonic_setup.sh  
 ```
-- To test if gazebo works launch "gz sim".
-- To check gazebo version, run "echo GZ_VERSION". If it is not harmonic, set it manually: "export GZ_VERSION=harmonic".
+- To test if gazebo works launch "**gz sim**".
+- To check gazebo's installed version, run "**echo GZ_VERSION**". If it is not harmonic, set it manually: "**export GZ_VERSION=harmonic**".
 
 4. Install and compile ros-gz from source (https://github.com/gazebosim/ros_gz/tree/jazzy?tab=readme-ov-file):
 ```bash
-    cd misc/
+    cd setup/
     ./ros_gz_setup.sh  
 ```
 
-5. Install FAST-LIO2
+5. Install FAST-LIO2:
 ```bash
-    cd misc/
+    cd setup/
     ./fast_lio2_setup.sh  
 ```
-- common issue while running "cmake .. && make -j" -> (SOLVED): Check out @lukeliao's comment on Feb 25: https://github.com/Livox-SDK/Livox-SDK2/issues/90
+- common issue while running "**cmake .. && make -j**" -> (SOLVED): Check out @lukeliao's comment on Feb 25: https://github.com/Livox-SDK/Livox-SDK2/issues/90
 
-6. Install required general packages for various nodes throughout codebase
+6. Install required general packages for various nodes throughout codebase:
 ```bash
-   cd misc/
+   cd setup/
    pip install -r requirements.txt
 ```
 
-Bringup Simulation 
+🚀 Bringup Simulation 
 -----
 
 1. Launch sim node
@@ -89,18 +88,17 @@ Bringup Simulation
 ```bash
    ros2 run match_control teleop_driven_flight
 ```
-   - Then check if vehicule is "ARMED" and on mode "OFFBOARD" by listening to following topic:
+   - Then check if vehicule is "**ARMED**" and on mode "**OFFBOARD**" by listening to following topic:
 ```bash
    ros2 topic echo /mavros/state
 ```
-   - If for some reason the vehicule's mode is not "OFFBOARD" anymore, set it manually using this command:
+   - If for some reason the vehicule's mode is not "**OFFBOARD**" anymore, set it manually using this command:
 ```bash
    ros2 service call /mavros/set_mode mavros_msgs/srv/SetMode "{custom_mode: 'OFFBOARD'}"
 ```
-   - If both are set, go back to "teleop_twist_keyboard" terminal and operate vehicule with keyboared.
-   - For vehicule control check this documentation out: [teleop_docs.py](../../match_control/match_control/)
+   - If both are set, go back to "**teleop_twist_keyboard**" terminal and operate vehicule with keyboared.
 
-4. Run fast-lio2 package using custom YAML file to start mapping (in new terminal)
+4. Run fast-lio2 package using custom YAML params file to start mapping (in new terminal)
 ```bash
    ros2 run fast_lio fastlio_mapping --ros-args --params-file src/match-drone/match_slam/config/fast_lio2_params.yaml --log-level fast_lio:=debug
 ```
@@ -108,15 +106,14 @@ Bringup Simulation
 ```bash
    ros2 launch fast_lio mapping.launch.py config_path:=/home/daghbeji/match_ws/src/match-drone/match_slam/config config_file:=fast_lio2_params.yaml rviz:=false
 ```
+   - See the documentation for the FAST-LIO2 custom params file under: [docs/know_your_fast-lio2_params_docs.md](docs/Misc/know_your_fast-lio2_params_docs.md)
 
 5. To save recorded map manually (in new terminal)
 ```bash
    ros2 service call /map_save std_srvs/srv/Trigger
 ```
-   - Set "pcd_save_en: true" and "interval: 5-10" in fast_lio2_params.yaml
-   - Modify the recorded map name in fast_lio2_params.yaml via parameter "map_file_path"
-   - Recorded map has .pcd format
-   - Check out FAST-LIO2 parameters documentation: [fast_li2_params_docs.py](../docs/match_control/)
+   - To see the documentation on saving the recorded map, please refer to the corresponding section in [docs/know_your_fast-lio2_params_docs.md](docs/Misc/know_your_fast-lio2_params_docs.md)
+
    - To visualize recorded map use pcl_viewer: 
 ```bash
    pcl_viewer recorded_map1.pcd
@@ -127,7 +124,7 @@ Bringup Simulation
    ros2 run rqt_tf_tree rqt_tf_tree
 ```
 
-Documentation
+📚 Documentation
 -----
 The fast-lio2 SLAM algorithm originates from the following paper:
 ```

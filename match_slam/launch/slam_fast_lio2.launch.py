@@ -249,37 +249,6 @@ def generate_launch_description():
     )
 
     ############################################# FIXES
-
-    ground_truth_map_converter = TimerAction(
-        period=4.7,
-        actions=[
-            Node(
-                package='sim_utils',
-                executable='sdf_to_pcl_converter',
-                name='sdf_to_pcl_converter',
-                output='screen',
-                emulate_tty=True,
-            #     parameters=[{'sdf_file': px4_world_absolute}]
-                parameters=[
-                    {
-                        'sdf_world': px4_world_absolute,          
-                        'fuel_cache_roots': ['~/.gz/fuel'],           # list[str]
-                        'points_per_mesh': 3000,                      
-                        'publish_rate_hz': 1.0,                 
-                        'frame_id': 'map',                            # str
-                    }
-                ],
-            )
-        ]
-    )
-
-    ground_truth_map_converter_tf = Node(
-        package='tf2_ros',
-        executable='static_transform_publisher',
-        name='map_gt_to_map',
-        arguments=['0','0','0','0','0','0','map_gt','map'],  # xyz + rpy + parent + child
-    )
-
     tf_map_to_camera_init = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
@@ -315,10 +284,6 @@ def generate_launch_description():
 
         # t = 4.5 — bridge sensors (lidar/imu/odom/joints)
         bridge_sensors,
-        
-        # t = 4.7 — SDF map → 3D-pointcloud
-        # ground_truth_map_converter,
-        # ground_truth_map_converter_tf,
         
         # t = 5.0 — topic/frame fixers
         pcl_topic_fix_node,

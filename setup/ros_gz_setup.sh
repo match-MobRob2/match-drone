@@ -11,19 +11,27 @@ echo "-----------------"
 # processors used to build a single package.
 
 # Clone repo inside your ros2 workspace 
-cd ~/ros2_ws/src
+cd ~/slam_ws/src
 
 # Download needed software
 git clone https://github.com/gazebosim/ros_gz.git -b jazzy
+echo -e "\e[32m============ ros package ros_gz cloned successfully ============\e[0m"
+# ███████████████████████
 
 #Install dependencies (this may also install Gazebo):
-cd ~/ros2_ws
+cd ~/slam_ws
 rosdep install -r --from-paths src -i -y --rosdistro jazzy
+
+echo -e "\e[32m============ dependencies installed successfully ============\e[0m"
+# ███████████████████████
 
 # Build and install into workspace
 source /opt/ros/jazzy/setup.bash 
 export MAKEFLAGS="-j 1"
-colcon build
+
+colcon build --allow-overriding ros_gz_bridge ros_gz_image ros_gz_interfaces ros_gz_sim ros_gz_sim_demos
+echo -e "\e[32m============ ros_gz builded successfully ============\e[0m"
+# ███████████████████████
 
 echo "------------------------------"
 echo "ROS GZ installation completed."

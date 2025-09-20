@@ -1,17 +1,22 @@
 #!/bin/bash
 
 echo "--------------------"
-echo "Installing FAST-LIO2"
+echo "Installing Livox-SDK2"
 echo "--------------------"
 
 # Install livox-SDK
 cd ~/
 mkdir -p ws_livox/src/
-cd /ws_livox/src/
+cd ws_livox/
+colcon build
+echo "source ~/ws_livox/install/setup.bash" >> ~/.bashrc 
+sudo apt install cmake
+cd src/
 git clone https://github.com/Livox-SDK/Livox-SDK2.git
-cd ./Livox-SDK2/
+cd Livox-SDK2/
 mkdir build
 cd build
+echo -e "\e[32m============ Livox-SDK2 cloned successfully ============\e[0m"
 
 ########################### FIX cmake error ###########################  
 DEFINE_H="$HOME/ws_livox/src/Livox-SDK2/sdk_core/comm/define.h"
@@ -44,23 +49,50 @@ add_include_once_after_block() {
 }
 add_include_once_after_block "$DEFINE_H"
 add_include_once_after_block "$FILE_MANAGER_H"
+
+# ███████████████████████
+echo -e "\e[32m============ CMake error fixed successfully ============\e[0m"
+
 ####################### ######################### #####################
-cmake .. && make -j
+cmake .. && make -j4
 sudo make install
 
+# ███████████████████████
+echo -e "\e[32m============ livox-SDK builded successfully ============\e[0m"
+
+echo "--------------------"
+echo "Installing Livox ROS Driver 2 "
+echo "--------------------"
+
 # Install Livox ROS Driver 2 
-cd ~/ws_livox/src/
-git clone https://github.com/Livox-SDK/livox_ros_driver2.git ws_livox/src/livox_ros_driver2
+cd ..
+cd ..
+cd ..
+rosdep install --from-paths src --ignore-src -y
+cd src/
+git clone https://github.com/Livox-SDK/livox_ros_driver2.git 
 source /opt/ros/jazzy/setup.sh
-./build.sh jazzy
+cd livox_ros_driver2/
+./build.sh humble
+
+# ███████████████████████
+echo -e "\e[32m============ Livox ROS Driver 2 builded successfully ============\e[0m"
+
+echo "--------------------"
+echo "Installing FAST-LIO2 "
+echo "--------------------"
 
 # Install FAST-LIO2 package 
 source ~/ws_livox/install/setup.bash
-cd ~/ros2_ws/src/
+cd ~/
+cd slam_ws/src/
 git clone https://github.com/Ericsii/FAST_LIO_ROS2.git --recursive
 cd ..
 rosdep install --from-paths src --ignore-src -y
-colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-select fast_lio --allow-overriding ros_gz_bridge ros_gz_image ros_gz_interfaces ros_gz_sim ros_gz_sim_demos
+colcon build --packages-select fast_lio --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+# ███████████████████████
+echo -e "\e[32m============ FAST-LIO2 builded successfully ============\e[0m"
 
 echo "---------------------------------"
 echo "FAST-LIO2 installation completed."

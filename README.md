@@ -19,60 +19,75 @@ This branch was established to integrate, test, and benchmark state-of-the-art S
 
 ⚙️ Installation Guide
 -----
+
+- First of all clone the repository to your local directory:
+```bash
+    mkdir -p slam_ws/src/
+    cd slam_ws/
+    colcon build
+    echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc 
+    echo "source ~/slam_ws/install/setup.bash" >> ~/.bashrc 
+    cd src/
+    git clone -b dev_slam --single-branch https://github.com/match-MobRob2/match-drone/  
+```
+
 ### For a one-time setup, please launch this bash script (Still in progress 🚧🛠️🔜)
 ```bash
-    cd setup/
+    cd match-drone/setup/
+    chmod +x setup_entire_workspace.sh 
     ./setup_entire_workspace.sh
 ```
 ### For a step-by-step installation, follow the following commands:
 
-1. First of all clone the repository to your local directory:
-```bash
-    cd ros2_ws/src
-    git clone https://github.com/match-MobRob2/match-drone/ .    
-    git checkout dev_slam
-```
-
-2. For installing **ROS2 jazzy**, **PX4**, **MAVROS**, **QGroundControl** and load custom models to PX4 run the following bash script or follow a step-by-step installation guide on the main branch of the repository:
+1. For installing **ROS2 jazzy**, **PX4**, **MAVROS**, **QGroundControl** and load custom models to PX4 run the following bash script or follow a step-by-step installation guide on the main branch of the repository:
 ```bash
     cd setup/
+    chmod +x setup.sh 
     ./setup.sh  
 ```
 - **(Note)** Everytime you modify the **model.sdf** under "*/match_models*", do the following to let PX4 know about the modifications:
 ```bash
-    cd ~/ros2_ws/src/match_models/
+    cd ~/slam_ws/src/match-drone/match_models/
     ./install_models.sh
 ```
 
-3. Install gazebo harmonic (https://gazebosim.org/docs/harmonic/install_ubuntu/):
+2. Install gazebo harmonic (https://gazebosim.org/docs/harmonic/install_ubuntu/):
 ```bash
-    cd setup/
+    chmod +x gazebo_harmonic_setup.sh 
     ./gazebo_harmonic_setup.sh  
 ```
 - To test if gazebo works launch "**gz sim**".
-- To check gazebo's installed version, run "**echo GZ_VERSION**". If it is not harmonic, set it manually: "**export GZ_VERSION=harmonic**".
+- To check gazebo's installed version, run "**echo $GZ_VERSION**". If it is not harmonic, set it manually: "**export GZ_VERSION=harmonic**".
 
-4. Install and compile ros-gz from source (https://github.com/gazebosim/ros_gz/tree/jazzy?tab=readme-ov-file):
+
+3. Install and compile ros-gz from source (https://github.com/gazebosim/ros_gz/tree/jazzy?tab=readme-ov-file):
 ```bash
-    cd setup/
+    chmod +x ros_gz_setup.sh 
     ./ros_gz_setup.sh  
 ```
 
-5. Install FAST-LIO2:
+4. Install FAST-LIO2:
 ```bash
-    cd setup/
+    chmod +x fast_lio2_setup.sh 
     ./fast_lio2_setup.sh  
 ```
 - common issue while running "**cmake .. && make -j**" -> (SOLVED): Check out @lukeliao's comment on Feb 25: https://github.com/Livox-SDK/Livox-SDK2/issues/90
 
-6. Install required general packages for various nodes throughout codebase:
+5. Install required general packages for various nodes throughout codebase:
 ```bash
+   cd ~/slam_ws
+   rosdep install --from-paths src --ignore-src -y
    cd setup/
    pip install -r requirements.txt
 ```
 
 🚀 Bringup Simulation 
 -----
+
+0. Run QGroundControl
+```bash
+   ./QGroundControl-x86_64.AppImage
+```
 
 1. Launch sim node
 ```bash

@@ -52,6 +52,7 @@ echo "Installing PX4-Autopilot"
 echo "------------------------"
 pwd
 cd ..
+cd ..
 git clone https://github.com/PX4/PX4-Autopilot.git --recursive
 cd PX4-Autopilot
 touch COLCON_IGNORE
@@ -76,10 +77,12 @@ echo "-------------------------"
 echo "Installing Custom Models"
 echo "-------------------------"
 
-cd src/match_models/
+pwd
+cd src/match-drone/match_models/
 chmod +x install_models.sh
 ./install_models.sh
 
+cd ..
 cd ..
 cd PX4-Autopilot
 make px4_sitl

@@ -3,7 +3,7 @@
   <!-- Expected params -->
   <xacro:macro name="lidar_sensor" params="parent_link frame_name xyz rpy 
                                    topic_name:=/scan
-                                   mesh_uri:=package://match_slam/description/meshes/livox_mid-360.stl
+                                   mesh_uri:=package://match_models/sdf/match_drohne/meshes/livox_mid-360.stl
                                    mesh_scale:='0.001 0.001 0.001'">
   
     <!-- LiDAR link + fixed joint to parent -->

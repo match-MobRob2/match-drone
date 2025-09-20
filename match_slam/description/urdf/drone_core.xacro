@@ -16,8 +16,8 @@
       <visual name="base_link_visual">
         <origin xyz="0 0 -0.35" rpy="0 0 3.141592654"/>
         <geometry>
-          <!-- <mesh filename="meshes/Drohnen-Modell.glb" scale="1 1 1"/> -->
-          <mesh filename="package://match_slam/description/meshes/Drohnen-Modell.stl" scale="1 1 1"/>
+          <mesh filename="package://match_models/sdf/match_drohne/meshes/Drohnen-Modell.glb" scale="1 1 1"/>
+          <!-- <mesh filename="package://match_models/sdf/match_drohne/meshes/Match-Drohne.stl" scale="1 1 1"/> -->
         </geometry>
       </visual>
       

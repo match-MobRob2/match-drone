@@ -32,7 +32,7 @@
       xyz="$(arg lidar_xyz)"
       rpy="$(arg lidar_rpy)"
       topic_name="$(arg lidar_topic)"
-      mesh_uri="package://match_slam/description/meshes/livox_mid-360.stl"
+      mesh_uri="package://match_models/sdf/match_drohne/meshes/livox_mid-360.stl"
       mesh_scale="0.001 0.001 0.001" />  <!-- use 0.001 if STL is in millimeters -->
 
   <!-- Mount Camera -->

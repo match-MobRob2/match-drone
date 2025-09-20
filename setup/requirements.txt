@@ -1,5 +1,7 @@
-cmake
+setuptools
+pandas
+numpy>=1.26
+open3d
+pytest
 eigen
 PCL
-pandas
-numpy

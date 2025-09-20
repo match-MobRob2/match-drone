@@ -28,7 +28,7 @@
         </geometry>
       </visual>
 
-      <visual name="base_link_visual2">
+      <!-- <visual name="base_link_visual2">
         <pose>0 0 -0.06 0 0 1.570796327</pose>
         <geometry>
           <mesh>
@@ -36,7 +36,7 @@
             <uri>meshes/Marvin.stl</uri>
           </mesh>
         </geometry>
-      </visual>
+      </visual> -->
 
       <visual name="5010_motor_base_0">
         <pose>0.23 0.23 .032 0 0 -.45</pose>
@@ -320,6 +320,7 @@
         <update_rate>30</update_rate>
       </sensor>
     </link>
+    
     <link name="rotor_0">
       <gravity>true</gravity>
       <self_collide>false</self_collide>
@@ -609,9 +610,176 @@
       </axis>
     </joint>
 
+    <!-- ========== Mount LiDAR + its IMU ========== -->
+    <link name="lidar_link">
+      <pose>0 0 0.075 0 0 0</pose>
 
+      <inertial>
+        <mass>0.2</mass>
+        <inertia>
+          <ixx>0.001</ixx><iyy>0.001</iyy><izz>0.001</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
 
-        <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <!-- Real Livox MID-360 visual -->
+      <visual name="livox_mid360_visual">
+        <pose>0 0 0 1.570796327 0 3.14159</pose>
+        <geometry>
+          <mesh>
+            <scale>0.001 0.001 0.001</scale>  
+            <uri>meshes/livox_mid-360.stl</uri>
+          </mesh>
+        </geometry>
+        <cast_shadows>false</cast_shadows>
+        <visibility_flags>2</visibility_flags> 
+      </visual>
+
+      <!-- LiDAR -->
+      <sensor name="livox_mid360" type="gpu_lidar">
+        <pose>0 0 0 0 0 0</pose>
+        <update_rate>10</update_rate>
+        <topic>/gz_scan</topic>
+        <lidar>
+          <scan>
+            <horizontal>
+              <samples>720</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>40</samples>
+              <resolution>1</resolution>
+              <min_angle>0</min_angle>
+              <max_angle>0.9774</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.01</min>
+            <max>20.0</max>
+            <!-- <max>40.0</max> -->
+            <resolution>0.01</resolution>
+          </range>
+          <visibility_mask>1</visibility_mask>  
+        </lidar>
+        <always_on>1</always_on>
+        <visualize>true</visualize>
+      </sensor>
+
+      <!-- IMU co-located with the LiDAR -->
+      <sensor name="livox_imu" type="imu">
+        <pose>0 0 0 0 0 0</pose>
+        <update_rate>100</update_rate>          <!-- IMU >> LiDAR (10 Hz) -->
+        <topic>/livox/imu</topic>            
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>8.7e-4</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>6.4e-3</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>6.4e-3</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>6.9e-3</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+        <always_on>1</always_on>
+      </sensor>
+    </link>
+
+    <!-- Fix the LiDAR rigidly to the body -->
+    <joint name="lidar_fixed" type="fixed">
+      <parent>base_link</parent>
+      <child>lidar_link</child>
+    </joint>
+
+    <!-- ========== Mount baisc RGB Camera ========== -->
+    <!-- <link name="camera_link">
+      <pose>0.12 0 0.10 0 0 0</pose>
+
+      <inertial>
+        <mass>1e-6</mass>
+        <inertia>
+          <ixx>1e-6</ixx><iyy>1e-6</iyy><izz>1e-6</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+
+      <visual name="front_camera_visual">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.05 0.1 0.1</size> 
+          </box>
+        </geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0.5 0.5 0.5 1</specular>
+        </material>
+      </visual>
+
+      <sensor name="front_camera" type="camera">
+        <pose>0 0 0 0 0 0</pose>
+        <update_rate>30</update_rate>
+        <topic>/camera/image</topic>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>1280</width>
+            <height>720</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.05</near>
+            <far>50.0</far>
+          </clip>
+          <noise type="gaussian">
+            <mean>0.0</mean>
+            <stddev>0.003</stddev>
+          </noise>
+        </camera>
+      </sensor>
+    </link> -->
+
+    <!-- Fix the camera rigidly to the body -->
+    <!-- <joint name="camera_fixed" type="fixed">
+      <parent>base_link</parent>
+      <child>camera_link</child>
+    </joint> -->
+
+    <!-- ========== TF + Odometry to ROS (odom -> base_link) ========== -->
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <!-- World / base frames -->
+      <odom_frame>odom</odom_frame>
+      <robot_base_frame>base_link</robot_base_frame>
+
+      <!-- Topics (bridge these in ROS 2) -->
+      <odom_topic>odom</odom_topic>
+      <tf_topic>tf</tf_topic>
+
+      <!-- Rates (Hz) -->
+      <odom_publish_frequency>60</odom_publish_frequency>
+      <tf_publish_frequency>60</tf_publish_frequency>
+
+      <!-- ========== Tell OdometryPublisher to publish 3D odometry (Default is 2D) ========== -->
+      <dimensions>3</dimensions>
+    </plugin>
+
+    <!-- =========== Report motor joint positions to ROS =========== -->
+    <plugin filename="gz-sim-joint-state-publisher-system"
+            name="gz::sim::systems::JointStatePublisher">
+      <topic>joint_states</topic>
+      <joint_name>rotor_0_joint</joint_name>
+      <joint_name>rotor_1_joint</joint_name>
+      <joint_name>rotor_2_joint</joint_name>
+      <joint_name>rotor_3_joint</joint_name>
+    </plugin>
+
+    <!-- =========== Simulate physics of motors =========== -->
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
       <jointName>rotor_0_joint</jointName>
       <linkName>rotor_0</linkName>
       <turningDirection>ccw</turningDirection>

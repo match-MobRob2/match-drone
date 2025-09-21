@@ -14,8 +14,8 @@ This branch was established to integrate, test, and benchmark state-of-the-art S
 * **PX4 firmware** installation on Linux: Autopilot software which includes the software-in-the-loop firmware
 * **MAVROS** package: Autopilot ROS interface
 * **QGroundControl** 
-* **teleop_twist_keyboard** package: Teleoperation ROS interface. For reference, see the documentation under: [docs/teleop_docs.py]
-* **SLAM package**: FAST-LIO2 (https://github.com/Ericsii/FAST_LIO_ROS2)
+* **teleop_twist_keyboard** package: Teleoperation ROS interface. For reference, see the [TELEOP](match-drone.wiki/teleoperation.md) WIKI documentation.
+* **SLAM package**: FAST-LIO2 (Check this [SLAM selection](match-drone.wiki/slam-selection.md) WIKI documentation)
 
 ⚙️ Installation Guide
 -----
@@ -102,7 +102,7 @@ This branch was established to integrate, test, and benchmark state-of-the-art S
    ```bash
       ros2 launch fast_lio mapping.launch.py config_path:=/home/daghbeji/match_ws/src/match-drone/match_slam/config config_file:=fast_lio2_params.yaml rviz:=false
    ```
-      - See the documentation for the FAST-LIO2 custom params file under: [docs/know_your_fast-lio2_params_docs.md](docs/Misc/know_your_fast-lio2_params_docs.md)
+      - See the documentation for [FAST-LIO2 custom params](match-drone.wiki/fast-lio2-params.md) under the repo's WIKI.
 
 
 4. Operate drone (in new terminal)
@@ -138,7 +138,7 @@ This branch was established to integrate, test, and benchmark state-of-the-art S
    ```bash
       ros2 service call /map_save std_srvs/srv/Trigger
    ```
-      - To see the documentation on saving the recorded map, please refer to the corresponding section in [docs/know_your_fast-lio2_params_docs.md](docs/Misc/know_your_fast-lio2_params_docs.md)
+      - To see the documentation on [saving recorded map](match-drone.wiki/fast-lio2-params.md), please refer to the corresponding section in the repo's WIKI.
 
       - To visualize recorded map use pcl_viewer: 
    ```bash

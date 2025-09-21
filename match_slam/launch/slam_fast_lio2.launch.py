@@ -243,7 +243,8 @@ def generate_launch_description():
                 name='rviz2',
                 output='screen',
                 parameters=[{'use_sim_time': True}],
-                arguments=['-d', PathJoinSubstitution([pkg_share, 'config', 'config_fast_lio2.rviz'])],
+                # arguments=['-d', PathJoinSubstitution([pkg_share, 'config', 'odom_config.rviz'])],
+                arguments=['-d', PathJoinSubstitution([pkg_share, 'config', 'fast_lio2_config.rviz'])],
             )
         ]
     )

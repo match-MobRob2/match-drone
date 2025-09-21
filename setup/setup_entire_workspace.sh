@@ -223,6 +223,6 @@ cd ~/slam_ws
 rosdep install --from-paths src --ignore-src -y
 echo -e "\e[32m============ ROS deps installed successfully ============\e[0m"
 
-cd src/match-drone/setup/
-pip install -r requirements.txt
-echo -e "\e[32m============ PIP deps installed successfully ============\e[0m"
+# cd src/match-drone/setup/
+# pip install -r requirements.txt
+# echo -e "\e[32m============ PIP deps installed successfully ============\e[0m"

@@ -5,3 +5,5 @@ open3d
 pytest
 eigen
 PCL
+evo
+xdotool

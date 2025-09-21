@@ -1,0 +1,84 @@
+
+>>> evo_ape tum results/2025-09-21_15-08-39/gt.txt results/2025-09-21_15-08-39/est.txt -va --plot --plot_mode xy --save_plot results/2025-09-21_15-08-39/ate_traj_xy.pdf --save_results results/2025-09-21_15-08-39/ate_results.zip
+--------------------------------------------------------------------------------
+Loaded 2003 stamps and poses from: results/2025-09-21_15-08-39/gt.txt
+Loaded 340 stamps and poses from: results/2025-09-21_15-08-39/est.txt
+--------------------------------------------------------------------------------
+Synchronizing trajectories...
+Found 336 of max. 340 possible matching timestamps between...
+	results/2025-09-21_15-08-39/gt.txt
+and:	results/2025-09-21_15-08-39/est.txt
+..with max. time diff.: 0.01 (s) and time offset: 0.0 (s).
+--------------------------------------------------------------------------------
+Aligning using Umeyama's method...
+Rotation of alignment:
+[[ 9.99956487e-01  1.74688661e-03  9.16362883e-03]
+ [-1.74702765e-03  9.99998474e-01  7.38569139e-06]
+ [-9.16360194e-03 -2.33944829e-05  9.99958013e-01]]
+Translation of alignment:
+[ 0.00193648 -0.00589081  0.26462156]
+Scale correction: 1.0
+--------------------------------------------------------------------------------
+Compared 336 absolute pose pairs.
+Calculating APE for translation part pose relation...
+--------------------------------------------------------------------------------
+APE w.r.t. translation part (m)
+(with SE(3) Umeyama alignment)
+
+       max	0.208099
+      mean	0.037768
+    median	0.031147
+       min	0.008957
+      rmse	0.049049
+       sse	0.808350
+       std	0.031295
+
+--------------------------------------------------------------------------------
+Plotting results... 
+Plots saved to results/2025-09-21_15-08-39/ate_traj_xy.pdf
+--------------------------------------------------------------------------------
+Saving results to results/2025-09-21_15-08-39/ate_results.zip...
+
+
+>>> evo_rpe tum results/2025-09-21_15-08-39/gt.txt results/2025-09-21_15-08-39/est.txt -va --plot --plot_mode xyz --save_plot results/2025-09-21_15-08-39/rpe_traj_xyz.pdf --save_results results/2025-09-21_15-08-39/rpe_results.zip
+--------------------------------------------------------------------------------
+Loaded 2003 stamps and poses from: results/2025-09-21_15-08-39/gt.txt
+Loaded 340 stamps and poses from: results/2025-09-21_15-08-39/est.txt
+--------------------------------------------------------------------------------
+Synchronizing trajectories...
+Found 336 of max. 340 possible matching timestamps between...
+	results/2025-09-21_15-08-39/gt.txt
+and:	results/2025-09-21_15-08-39/est.txt
+..with max. time diff.: 0.01 (s) and time offset: 0.0 (s).
+--------------------------------------------------------------------------------
+Aligning using Umeyama's method...
+Rotation of alignment:
+[[ 9.99956487e-01  1.74688661e-03  9.16362883e-03]
+ [-1.74702765e-03  9.99998474e-01  7.38569139e-06]
+ [-9.16360194e-03 -2.33944829e-05  9.99958013e-01]]
+Translation of alignment:
+[ 0.00193648 -0.00589081  0.26462156]
+Scale correction: 1.0
+--------------------------------------------------------------------------------
+Found 335 pairs with delta 1 (frames) among 336 poses using consecutive pairs.
+Compared 335 relative pose pairs, delta = 1 (frames) with consecutive pairs.
+Calculating RPE for translation part pose relation...
+--------------------------------------------------------------------------------
+RPE w.r.t. translation part (m)
+for delta = 1 (frames) using consecutive pairs
+(with SE(3) Umeyama alignment)
+
+       max	0.068155
+      mean	0.003821
+    median	0.001043
+       min	0.000031
+      rmse	0.009070
+       sse	0.027558
+       std	0.008226
+
+--------------------------------------------------------------------------------
+Plotting results... 
+Plots saved to results/2025-09-21_15-08-39/rpe_traj_xyz.pdf
+--------------------------------------------------------------------------------
+Saving results to results/2025-09-21_15-08-39/rpe_results.zip...
+

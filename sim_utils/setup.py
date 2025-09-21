@@ -26,8 +26,8 @@ setup(
             'odom_bridge = sim_utils.odom_bridge:main',
             # test fast-lio with New college dataset
             'odom_tf = sim_utils.odom_tf:main',
-            'pcd_replay = sim_utils.pcd_replay:main',
-            'gt_map_pub = sim_utils.gt_map_pub:main',
+            # EVO slam evaluation
+            'evo_evaluate = sim_utils.evo_evaluate:main',
         ],
     },
 )

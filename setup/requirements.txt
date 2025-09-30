@@ -7,3 +7,4 @@ eigen
 PCL
 evo
 xdotool
+pcl_viewer

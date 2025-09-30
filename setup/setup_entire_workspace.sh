@@ -66,6 +66,7 @@ echo "Installing MAVROS"
 echo "------------------------"
 cd ..
 cd ..
+export ROS_DISTRO=jazzy
 sudo apt-get install ros-${ROS_DISTRO}-mavros ros-${ROS_DISTRO}-mavros-extras ros-${ROS_DISTRO}-mavros-msgs
 wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
 sudo bash ./install_geographiclib_datasets.sh
@@ -77,6 +78,7 @@ echo "-------------------------"
 echo "Installing Custom Models"
 echo "-------------------------"
 
+pwd
 cd src/match-drone/match_models/
 chmod +x install_models.sh
 ./install_models.sh
@@ -89,6 +91,32 @@ make px4_sitl
 echo ""
 echo "Custom Models installation completed."
 echo ""
+echo ""
+
+echo "-------------------------"
+echo "Installing QGroundControl" 
+echo "-------------------------"
+
+cd ..
+
+# Enable serial-port access Add your user to the dialout group so you can talk to USB devices without root:
+sudo usermod -aG dialout "$(id -un)"
+
+sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
+sudo apt install libfuse2 -y
+sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
+
+URL="https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl-x86_64.AppImage"
+OUTPUT="QGroundControl-x86_64.AppImage"
+
+echo "Downloading QGroundControl..."
+curl -L "$URL" -o "$OUTPUT"
+
+chmod +x "$OUTPUT"
+echo "Downloaded and made executable: $OUTPUT"
+
+cd ~/slam_ws/
+colcon build --packages-select match-drone
 
 echo "-----------------"
 echo "Installing ROS GZ"
@@ -102,8 +130,10 @@ git clone https://github.com/gazebosim/ros_gz.git -b jazzy
 echo -e "\e[32m============ ros package ros_gz cloned successfully ============\e[0m"
 # ███████████████████████
 
-#Install dependencies (this may also install Gazebo):
-cd ~/slam_ws
+#Install rosdep + dependencies 
+sudo apt install python3-rosdep
+rosdep init
+rosdep update
 rosdep install -r --from-paths src -i -y --rosdistro jazzy
 
 echo -e "\e[32m============ dependencies installed successfully ============\e[0m"
@@ -126,13 +156,8 @@ echo "Installing Livox-SDK2"
 echo "--------------------"
 
 # Install livox-SDK
-cd ~/
-mkdir -p ws_livox/src/
-cd ws_livox/
-colcon build
-echo "source ~/ws_livox/install/setup.bash" >> ~/.bashrc 
+cd ~/slam_ws/src/
 sudo apt install cmake
-cd src/
 git clone https://github.com/Livox-SDK/Livox-SDK2.git
 cd Livox-SDK2/
 mkdir build
@@ -140,8 +165,8 @@ cd build
 echo -e "\e[32m============ Livox-SDK2 cloned successfully ============\e[0m"
 
 ########################### FIX cmake error ###########################  
-DEFINE_H="$HOME/ws_livox/src/Livox-SDK2/sdk_core/comm/define.h"
-FILE_MANAGER_H="$HOME/ws_livox/src/Livox-SDK2/sdk_core/logger_handler/file_manager.h"
+DEFINE_H="$HOME/slam_ws/src/Livox-SDK2/sdk_core/comm/define.h"
+FILE_MANAGER_H="$HOME/slam_ws/src/Livox-SDK2/sdk_core/logger_handler/file_manager.h"
 add_include_once_after_block() {
   local file="$1"
 
@@ -204,7 +229,7 @@ echo "Installing FAST-LIO2 "
 echo "--------------------"
 
 # Install FAST-LIO2 package 
-source ~/ws_livox/install/setup.bash
+source ~/slam_ws/install/setup.bash
 cd ~/
 cd slam_ws/src/
 git clone https://github.com/Ericsii/FAST_LIO_ROS2.git --recursive
@@ -219,10 +244,8 @@ echo "---------------------------------"
 echo "FAST-LIO2 installation completed."
 echo "---------------------------------"
 
+# Install requirements
 cd ~/slam_ws
 rosdep install --from-paths src --ignore-src -y
-echo -e "\e[32m============ ROS deps installed successfully ============\e[0m"
-
-# cd src/match-drone/setup/
-# pip install -r requirements.txt
-# echo -e "\e[32m============ PIP deps installed successfully ============\e[0m"
+cd src/match-drone/setup/
+pip install -r requirements.txt

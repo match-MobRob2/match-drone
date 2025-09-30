@@ -66,6 +66,7 @@ echo "Installing MAVROS"
 echo "------------------------"
 cd ..
 cd ..
+export ROS_DISTRO=jazzy
 sudo apt-get install ros-${ROS_DISTRO}-mavros ros-${ROS_DISTRO}-mavros-extras ros-${ROS_DISTRO}-mavros-msgs
 wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
 sudo bash ./install_geographiclib_datasets.sh
@@ -91,4 +92,27 @@ echo ""
 echo "Custom Models installation completed."
 echo ""
 echo ""
+
+echo "-------------------------"
+echo "Installing QGroundControl" 
+echo "-------------------------"
+
+cd ..
+
+# Enable serial-port access Add your user to the dialout group so you can talk to USB devices without root:
+sudo usermod -aG dialout "$(id -un)"
+
+sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-libav gstreamer1.0-gl -y
+sudo apt install libfuse2 -y
+sudo apt install libxcb-xinerama0 libxkbcommon-x11-0 libxcb-cursor-dev -y
+
+URL="https://d176tv9ibo4jno.cloudfront.net/latest/QGroundControl-x86_64.AppImage"
+OUTPUT="QGroundControl-x86_64.AppImage"
+
+echo "Downloading QGroundControl..."
+curl -L "$URL" -o "$OUTPUT"
+
+chmod +x "$OUTPUT"
+echo "Downloaded and made executable: $OUTPUT"
+
 echo "Fertig :). Tschüssi :)"

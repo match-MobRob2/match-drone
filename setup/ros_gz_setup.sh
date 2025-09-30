@@ -18,8 +18,10 @@ git clone https://github.com/gazebosim/ros_gz.git -b jazzy
 echo -e "\e[32m============ ros package ros_gz cloned successfully ============\e[0m"
 # ███████████████████████
 
-#Install dependencies (this may also install Gazebo):
-cd ~/slam_ws
+#Install rosdep + dependencies 
+sudo apt install python3-rosdep
+rosdep init
+rosdep update
 rosdep install -r --from-paths src -i -y --rosdistro jazzy
 
 echo -e "\e[32m============ dependencies installed successfully ============\e[0m"

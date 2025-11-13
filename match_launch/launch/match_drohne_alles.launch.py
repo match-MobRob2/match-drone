@@ -11,9 +11,7 @@ MATCH_MODELS_SHARE = get_package_share_directory("match_models")
 
 
 def generate_launch_description():
-    default_px4_dir = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "PX4-Autopilot")
-    )
+    default_px4_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/PX4-Autopilot'))
     default_spawn_model = os.path.join(
         MATCH_MODELS_SHARE, "sdf", "match_drohne_alles", "model.sdf"
     )
@@ -42,7 +40,7 @@ def generate_launch_description():
         cwd=default_px4_dir,
         output="screen",
         additional_env={
-            "PX4_SYS_AUTOSTART": "40012",
+            "PX4_SYS_AUTOSTART": "40014",
             "PX4_SIM_MODEL": "match_drohne_alles",
             "PX4_SIMULATOR": "GZ",
             "PX4_GZ_MODEL_POSE": [
@@ -62,17 +60,15 @@ def generate_launch_description():
     )
 
     mavros_timer = TimerAction(
-        period=5.0,
+        period=10.0,
         actions=[
             ExecuteProcess(
                 cmd=[
-                    "ros2",
-                    "launch",
-                    "mavros",
-                    "px4.launch",
-                    ["fcu_url:=", "udp://:14540@"],
+                    "ros2", "launch", "mavros", "px4.launch",
+                    "use_sim_time:=true",
+                    "fcu_url:=udp://:14540@"
                 ],
-                output="screen",
+                output="screen"
             )
         ],
     )
@@ -124,13 +120,46 @@ def generate_launch_description():
         parameters=[{"robot_description": robot_description_content}],
     )
 
+    static_lidar_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='top_lidar_sensor_frame_tf',
+        arguments=[
+            '0', '0', '0', '0', '0', '0',
+            'top_lidar_frame',
+            'match_drohne_alles_0/top_lidar_link/top_lidar',
+        ],
+    )
+
+
+    static_depth_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='front_depth_sensor_frame_tf',
+        arguments=[
+            '0', '0', '0', '0', '0', '0',
+            'front_depth_camera_optical_frame',
+            'match_drohne_alles_0/front_sensor_mount_link/front_depth_camera',
+        ],
+    )
+
     bridge_arguments = [
         "/match_drohne_alles/front_rgb/image@sensor_msgs/msg/Image[gz.msgs.Image",
         "/match_drohne_alles/front_rgb/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+
         "/match_drohne_alles/front_depth/image@sensor_msgs/msg/Image[gz.msgs.Image",
         "/match_drohne_alles/front_depth/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+
+        "/match_drohne_alles/front_depth/image/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+
         "/match_drohne_alles/top_lidar/points@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+
+        "/match_drohne_alles/top_lidar/points/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+
+        "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock"
     ]
+
+
     sensor_bridge_node = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
@@ -138,7 +167,14 @@ def generate_launch_description():
         output="screen",
     )
 
+    mavros_local_to_tf_node = Node(
+        package="match_utils",
+        executable="mavros_local_to_tf",
+        parameters=[{"use_sim_time": True}],
+        output="screen",
+    )
+
     return LaunchDescription(
         declare_args
-        + [px4_process, mavros_timer, spawn_action, robot_state_publisher_node, sensor_bridge_node]
+        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, mavros_local_to_tf_node]
     )

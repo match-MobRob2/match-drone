@@ -33,6 +33,7 @@
       </inertial>
       <sensor name='lidar' type='gpu_lidar'>"
         <pose>0 0 0 3.14 0 0</pose>
+        <topic>/lidar_top/points</topic>
         <update_rate>50</update_rate>
         <ray>
             <scan>

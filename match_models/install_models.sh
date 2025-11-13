@@ -8,6 +8,7 @@ cat <<EOL >> ../PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/CMakeLi
     40011_gz_match_drohne
    	40012_gz_match_drohne_lidar
     40013_gz_match_drohne_fr_camera
+    40014_gz_match_drohne_alles
 )
 EOL
 

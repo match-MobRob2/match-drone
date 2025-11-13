@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version='1.9'>
+  <model name='match_drohne_alles'>
+    <self_collide>false</self_collide>
+    <static>false</static>
+
+    <include merge='true'>
+      <uri>model://match_drohne</uri>
+    </include>
+
+    <link name="front_sensor_mount_link">
+      <pose relative_to="base_link">0.23 0 0.08 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia>
+          <ixx>1e-4</ixx>
+          <iyy>1e-4</iyy>
+          <izz>1e-4</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="front_sensor_mount_visual">
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.06</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.2 0.2 0.2 1</ambient>
+          <diffuse>0.4 0.4 0.4 1</diffuse>
+          <specular>0.1 0.1 0.1 1</specular>
+        </material>
+      </visual>
+      <collision name="front_sensor_mount_collision">
+        <geometry>
+          <box>
+            <size>0.08 0.08 0.06</size>
+          </box>
+        </geometry>
+      </collision>
+
+      <sensor name="front_rgb_camera" type="camera">
+        <pose>0 0 0 0 0 0</pose>
+        <topic>/match_drohne_alles/front_rgb/image</topic>
+        <update_rate>30</update_rate>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>1280</width>
+            <height>720</height>
+            <format>R8G8B8</format>
+          </image>
+          <clip>
+            <near>0.1</near>
+            <far>120</far>
+          </clip>
+        </camera>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+      </sensor>
+
+      <sensor name="front_depth_camera" type="depth">
+        <pose>0 0 0 0 0 0</pose>
+        <topic>/match_drohne_alles/front_depth/image</topic>
+        <update_rate>20</update_rate>
+        <camera>
+          <horizontal_fov>1.047</horizontal_fov>
+          <image>
+            <width>640</width>
+            <height>480</height>
+            <format>R_FLOAT32</format>
+          </image>
+          <clip>
+            <near>0.2</near>
+            <far>50</far>
+          </clip>
+        </camera>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <joint name="front_sensor_mount_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>front_sensor_mount_link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint>
+
+    <link name="top_lidar_link">
+      <pose relative_to="base_link">0 0 0.2 0 0 0</pose>
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>5e-5</ixx>
+          <iyy>5e-5</iyy>
+          <izz>5e-5</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="top_lidar_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.1 0.1 0.1 1</ambient>
+          <diffuse>0.2 0.2 0.2 1</diffuse>
+          <specular>0.05 0.05 0.05 1</specular>
+        </material>
+      </visual>
+      <collision name="top_lidar_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+      </collision>
+
+      <sensor name='top_lidar' type='gpu_lidar'>
+        <pose>0 0 0 0 0 0</pose>
+        <topic>/match_drohne_alles/top_lidar/points</topic>
+        <update_rate>20</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>720</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>16</samples>
+              <resolution>1</resolution>
+              <min_angle>-0.261799</min_angle>
+              <max_angle>0.261799</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.2</min>
+            <max>120.0</max>
+            <resolution>0.02</resolution>
+          </range>
+        </ray>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <joint name="top_lidar_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>top_lidar_link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint>
+
+        <frame name="front_rgb_camera_frame" attached_to="front_sensor_mount_link">
+      <!-- kleine Offsets möglich, wenn die Kamera nicht genau im Link-Zentrum sitzt -->
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+
+    <frame name="front_depth_camera_frame" attached_to="front_sensor_mount_link">
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+
+    <frame name="top_lidar_frame" attached_to="top_lidar_link">
+      <!-- aktuell identisch mit top_lidar_link -->
+      <pose>0 0 0 0 0 0</pose>
+    </frame>
+  </model>
+</sdf>

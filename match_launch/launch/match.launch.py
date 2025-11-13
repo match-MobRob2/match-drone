@@ -1,196 +1,206 @@
-from launch import LaunchDescription
-from launch.actions import ExecuteProcess, TimerAction, DeclareLaunchArgument
-from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
-
-from ament_index_python.packages import get_package_share_directory
-
 import os
 
+from ament_index_python.packages import get_package_share_directory
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, TimerAction
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
+
+
+MATCH_MODELS_SHARE = get_package_share_directory("match_models")
+
+
 def generate_launch_description():
-    # Fester Pfad zum PX4-Autopilot-Verzeichnis (z. B. relativ zum Launchfile)
-    px4_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/PX4-Autopilot'))
-    world = "default"       # oder z. B. "baylands"
-    headless = "false"   # "true" für headless-Modus
+    default_px4_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "PX4-Autopilot")
+    )
+    default_spawn_model = os.path.join(
+        MATCH_MODELS_SHARE, "sdf", "match_drohne_lidar", "model.sdf"
+    )
 
-    match_models_path = get_package_share_directory("match_models")
-
-
-    world_file = f"{px4_dir}/Tools/simulation/gz/worlds/{world}.sdf"
-    model_file = "$(ros2 pkg prefix match_models)/share/match_models/urdf/iris.sdf"
-
-
-    print(f"PX4 Directory: {px4_dir}")
-    print(f"World File: {world_file}")
-    print(f"Model File: {model_file}")
-    
-    PX4_HOME_LAT = "52.42449457140792"  # Beispielkoordinaten
-    PX4_HOME_LON = "9.620245153463955"
-    PX4_HOME_ALT = "20.0"  # Beispielhöhe in Metern
-
-    
-    px4_gz_models = f"{px4_dir}/Tools/simulation/gz/models"
-    px4_gz_worlds = f"{px4_dir}/Tools/simulation/gz/worlds"
-    px4_gz_plugins = f"{px4_dir}/build/px4_sitl_default/src/modules/simulation/gz_plugins"
-    px4_gz_server_config = f"{px4_dir}/src/modules/simulation/gz_bridge/server.config"
-
-    # Umgebungsvariablen erweitern
-    gz_resource_path = f"{os.environ.get('GZ_SIM_RESOURCE_PATH', '')}{px4_gz_worlds}:{px4_gz_models}"
-    gz_plugin_path = f"{os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')}{px4_gz_plugins}"
-    gz_server_config_path = f"{os.environ.get('GZ_SIM_SERVER_CONFIG_PATH', '')}{px4_gz_server_config}"
-
-
-    print(f"PX4 GZ Models: {px4_gz_models}")
-    print(f"PX4 GZ Worlds: {px4_gz_worlds}")
-    print(f"PX4 GZ Plugins: {px4_gz_plugins}")
-    print(f"PX4 GZ Server Config: {px4_gz_server_config}")
-
-    print(f"GZ Resource Path: {gz_resource_path}")
-    print(f"GZ Plugin Path: {gz_plugin_path}")
-    print(f"GZ Server Config Path: {gz_server_config_path}")
-
-    gz_sim_resource_path = f"{px4_gz_worlds}:{px4_gz_plugins}"
-
-    world = f"{match_models_path}/worlds/empty.sdf"
-
-    print(f"World: {world}")
-
-
-
-    #52.63098207727893, 10.05284961998495
-    # PX4_HOME_LAT = "52.63098207727893"  # Beispielkoordinaten
-    # PX4_HOME_LON = "10.05284961998495"
-
-    return LaunchDescription([
-
+    declare_args = [
         DeclareLaunchArgument(
-            'mission',
-            default_value='demo_takeoff_land',
-            description='Name of the mission node to launch'
+            "px4_dir",
+            default_value=default_px4_dir,
+            description="PX4-Arbeitsverzeichnis mit dem gebauten SITL-Binary.",
         ),
-
-
-        TimerAction(
-            period=3.0,
-            actions=[
-                ExecuteProcess(
-                    name="px4_sitl",
-                    cmd=["./build/px4_sitl_default/bin/px4"],
-                    cwd=px4_dir,
-                    output="screen",
-                    shell=True,
-                    additional_env={
-                        "PX4_SYS_AUTOSTART": "40011",
-                        "PX4_SIM_MODEL": "match_drohne",
-                        "PX4_SIMULATOR": "GZ",
-                        "VERBOSE": "1",
-                        "PX4_GZ_STANDALONE": "true",
-                        "PX4_HOME_LAT": PX4_HOME_LAT,
-                        "PX4_HOME_LON": PX4_HOME_LON,
-                        "PX4_HOME_ALT": PX4_HOME_ALT,
-                        "PX4_GZ_WORLD": "empty",
-                    }
-                )
-            ]
+        DeclareLaunchArgument(
+            "px4_autostart",
+            default_value="40012",
+            description="PX4 SYS_AUTOSTART Profil.",
         ),
+        DeclareLaunchArgument(
+            "px4_sim_model",
+            default_value="match_drohne_lidar",
+            description="PX4_SIM_MODEL Auswahl.",
+        ),
+        DeclareLaunchArgument(
+            "px4_gz_world",
+            default_value="scale",
+            description="Name der GZ-Welt für PX4_GZ_WORLD.",
+        ),
+        DeclareLaunchArgument(
+            "px4_gz_model_pose",
+            default_value="2,2,0,0,0,0",
+            description="PX4_GZ_MODEL_POSE (x,y,z,roll,pitch,yaw).",
+        ),
+        DeclareLaunchArgument(
+            "px4_home_lat",
+            default_value="52.42449457140792",
+            description="PX4_HOME_LAT.",
+        ),
+        DeclareLaunchArgument(
+            "px4_home_lon",
+            default_value="9.620245153463955",
+            description="PX4_HOME_LON.",
+        ),
+        DeclareLaunchArgument(
+            "px4_home_alt",
+            default_value="20.0",
+            description="PX4_HOME_ALT.",
+        ),
+        DeclareLaunchArgument(
+            "start_mavros",
+            default_value="true",
+            description="Starte MAVROS Bridge.",
+        ),
+        DeclareLaunchArgument(
+            "mavros_fcu_url",
+            default_value="udp://:14540@",
+            description="MAVROS fcu_url Parameter.",
+        ),
+        DeclareLaunchArgument(
+            "spawn_drone",
+            default_value="true",
+            description="Aktiviere das Spawnen des Modells.",
+        ),
+        DeclareLaunchArgument(
+            "spawn_model",
+            default_value=default_spawn_model,
+            description="Pfad zur zu spawnenden SDF/URDF.",
+        ),
+        DeclareLaunchArgument(
+            "spawn_name",
+            default_value="match_drohne",
+            description="Entity-Name in Gazebo.",
+        ),
+        DeclareLaunchArgument(
+            "spawn_world",
+            default_value="scale",
+            description="Gazebo-Weltname für ros_gz_sim create.",
+        ),
+        DeclareLaunchArgument(
+            "spawn_delay",
+            default_value="3.0",
+            description="Verzögerung in Sekunden vor dem Spawn-Aufruf.",
+        ),
+        DeclareLaunchArgument("spawn_x", default_value="0.0", description="Spawn X."),
+        DeclareLaunchArgument("spawn_y", default_value="0.0", description="Spawn Y."),
+        DeclareLaunchArgument("spawn_z", default_value="1.0", description="Spawn Z."),
+        DeclareLaunchArgument("spawn_roll", default_value="0.0", description="Spawn Roll."),
+        DeclareLaunchArgument("spawn_pitch", default_value="0.0", description="Spawn Pitch."),
+        DeclareLaunchArgument("spawn_yaw", default_value="0.0", description="Spawn Yaw."),
+    ]
 
-        #Gazebo starten
-        ExecuteProcess(
-            name="gazebo_server",
+    px4_dir = LaunchConfiguration("px4_dir")
+    px4_autostart = LaunchConfiguration("px4_autostart")
+    px4_sim_model = LaunchConfiguration("px4_sim_model")
+    px4_gz_world = LaunchConfiguration("px4_gz_world")
+    px4_gz_model_pose = LaunchConfiguration("px4_gz_model_pose")
+    px4_home_lat = LaunchConfiguration("px4_home_lat")
+    px4_home_lon = LaunchConfiguration("px4_home_lon")
+    px4_home_alt = LaunchConfiguration("px4_home_alt")
+
+    start_mavros = LaunchConfiguration("start_mavros")
+    mavros_fcu_url = LaunchConfiguration("mavros_fcu_url")
+
+    spawn_world = LaunchConfiguration("spawn_world")
+    spawn_name = LaunchConfiguration("spawn_name")
+    spawn_model = LaunchConfiguration("spawn_model")
+    spawn_x = LaunchConfiguration("spawn_x")
+    spawn_y = LaunchConfiguration("spawn_y")
+    spawn_z = LaunchConfiguration("spawn_z")
+    spawn_roll = LaunchConfiguration("spawn_roll")
+    spawn_pitch = LaunchConfiguration("spawn_pitch")
+    spawn_yaw = LaunchConfiguration("spawn_yaw")
+
+    px4_process = ExecuteProcess(
+        cmd=["./build/px4_sitl_default/bin/px4"],
+        cwd=px4_dir,
+        output="screen",
+        additional_env={
+            "PX4_SYS_AUTOSTART": px4_autostart,
+            "PX4_SIM_MODEL": px4_sim_model,
+            "PX4_SIMULATOR": "GZ",
+            "PX4_GZ_MODEL_POSE": px4_gz_model_pose,
+            "PX4_GZ_STANDALONE": "true",
+            "PX4_GZ_WORLD": px4_gz_world,
+            "PX4_HOME_LAT": px4_home_lat,
+            "PX4_HOME_LON": px4_home_lon,
+            "PX4_HOME_ALT": px4_home_alt,
+        },
+    )
+
+    mavros_timer = TimerAction(
+        period=5.0,
+        condition=IfCondition(start_mavros),
+        actions=[
+            ExecuteProcess(
+                cmd=[
+                    "ros2",
+                    "launch",
+                    "mavros",
+                    "px4.launch",
+                    ["fcu_url:=", mavros_fcu_url],
+                ],
+                output="screen",
+            )
+        ],
+    )
+
+    def make_spawn_timer(context, *args, **kwargs):
+        spawn_enabled = LaunchConfiguration("spawn_drone").perform(context).lower()
+        if spawn_enabled in ("false", "0"):
+            return []
+
+        delay_value = LaunchConfiguration("spawn_delay").perform(context)
+        try:
+            delay_sec = float(delay_value)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"spawn_delay muss eine Zahl sein, aktuell: {delay_value}"
+            ) from exc
+
+        spawn_process = ExecuteProcess(
             cmd=[
-                "bash", "-c",
-                f"echo $PX4_GZ_MODELS && "
-                f"echo $PX4_GZ_WORLDS && "
-                f"echo $PX4_GZ_PLUGINS && "
-                f"echo $PX4_GZ_SERVER_CONFIG && "
-                f"echo $GZ_SIM_RESOURCE_PATH && "
-                f"echo $GZ_SIM_SYSTEM_PLUGIN_PATH && "
-                f"echo $GZ_SIM_SERVER_CONFIG_PATH && "
-                f"gz sim --verbose=1 -r -s {world}"
+                "ros2",
+                "run",
+                "ros_gz_sim",
+                "create",
+                "-world",
+                spawn_world,
+                "-name",
+                spawn_name,
+                "-file",
+                spawn_model,
+                "-x",
+                spawn_x,
+                "-y",
+                spawn_y,
+                "-z",
+                spawn_z,
+                "-R",
+                spawn_roll,
+                "-P",
+                spawn_pitch,
+                "-Y",
+                spawn_yaw,
             ],
-            additional_env = {
-                "PX4_GZ_MODELS": px4_gz_models,
-                "PX4_GZ_WORLDS": px4_gz_worlds,
-                "PX4_GZ_PLUGINS": px4_gz_plugins,
-                "PX4_GZ_SERVER_CONFIG": px4_gz_server_config,
-                "GZ_SIM_RESOURCE_PATH": gz_resource_path,
-                "GZ_SIM_SYSTEM_PLUGIN_PATH": gz_plugin_path,
-                "GZ_SIM_SERVER_CONFIG_PATH": gz_server_config_path,
-            },
-            output="screen"
-        ),
-
-        TimerAction(
-            period=2.0,
-            actions=[
-                ExecuteProcess(
-                    name="gazebo_client",
-                    cmd=[
-                        "gz", "sim", "-g"
-                    ],
-                    output="screen"
-                ),
-            ]
-        ),
-
-        # # Modell nach 4 Sekunden spawnen
-        # TimerAction(
-        #     period=1.0,
-        #     actions=[
-        #     ExecuteProcess(
-        #         cmd=[
-        #         "bash", "-c",
-        #         f"gz service -s /world/default/create "
-        #         f"--reqtype gz.msgs.EntityFactory "
-        #         f"--reptype gz.msgs.Boolean "
-        #         f"--timeout 5000 "
-        #         f"--req 'sdf_filename: \"/home/luca/Match_Drohne/src/match_models/urdf/x500_base/model.sdf\", "
-        #         f"name: \"match_drohne\", "
-        #         f"pose: {{position: {{x: 1.01, y: 0.98, z: 0.83}}}}'"
-        #         ],
-        #         output="screen"
-        #     )
-        #     ]
-        # ),
-
-        # #Mavros starten
-        TimerAction(
-            period=10.0,
-            actions=[
-                ExecuteProcess(
-                    cmd=[
-                        "ros2", "launch", "mavros", "px4.launch",
-                        "fcu_url:=udp://:14540@"
-                    ],
-                    output="screen"
-                )
-            ]
-        ),
-
-        #GUI starten
-        # TimerAction(
-        #     period=6.0,
-        #     actions=[
-        #         ExecuteProcess(
-        #             cmd=[
-        #                 "bash", "-c",
-        #                 f"source {px4_dir}/Tools/simulation/gazebo-classic/setup_gazebo.bash {px4_dir} {px4_dir}/build/px4_sitl_default && "
-        #                 f"gzclient --verbose"],
-        #             output="screen"
-        #         )
-        #     ]
-        # ),
-
-        # Match Control Node starten
-        TimerAction(
-            period=20.0,
-            actions=[
-                Node(
-                    package='match_control',
-                    executable=LaunchConfiguration('mission'),
-                    name=LaunchConfiguration('mission'),
-                    output='screen',
-                )
-            ]
+            output="screen",
         )
-    ])
+
+        return [TimerAction(period=delay_sec, actions=[spawn_process])]
+
+    spawn_action = OpaqueFunction(function=make_spawn_timer)
+
+    return LaunchDescription(declare_args + [px4_process, mavros_timer, spawn_action])

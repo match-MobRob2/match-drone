@@ -46,7 +46,6 @@ class TimestampRewriter(Node):
     def callback(self, msg):
         # Node-Clock verwenden → respektiert use_sim_time und /clock
         msg.header.stamp = self.get_clock().now().to_msg()
-        self.get_logger().info(f"Rewrote timestamp to {msg.header.stamp.sec}.{msg.header.stamp.nanosec}")
         self.pub.publish(msg)
 
 

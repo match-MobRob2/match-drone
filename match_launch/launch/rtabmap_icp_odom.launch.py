@@ -14,6 +14,7 @@ def generate_launch_description():
                 # Frames
                 'frame_id': 'base_link',
                 'odom_frame_id': 'odom',
+                'publish_tf': True,
 
                 # Zeit
                 'use_sim_time': True,
@@ -25,7 +26,7 @@ def generate_launch_description():
                 'subscribe_rgb': False,
                 'subscribe_stereo': False,
                 'subscribe_imu': True,
-                'subscribe_odometry': True,
+                'subscribe_odometry': False,
 
                 # IMU / Init
                 'wait_imu_to_init': True,         # erst starten, wenn IMU da ist
@@ -42,12 +43,12 @@ def generate_launch_description():
                 'Icp/Strategy': '0',            # int (0=PCL,1=PM,2=CCCoreLib)
 
                 # ICP-Parameter (ALLE ALS STRING!)
-                'Icp/MaxCorrespondenceDistance': '0.8',
-                'Icp/CorrespondenceRatio': '0.03',
-                'Icp/Iterations': '30',
+                'Icp/MaxCorrespondenceDistance': '0.5',
+                'Icp/CorrespondenceRatio': '0.2',
+                'Icp/Iterations': '15',
                 'Icp/VoxelSize': '0.1',
-                'Icp/MaxTranslation': '2.0',
-                'Icp/MaxRotation': '1.57',
+                'Icp/MaxTranslation': '0.5',
+                'Icp/MaxRotation': '0.5',
 
                 'Odom/GuessMotion': 'true',   # auch String
             }],

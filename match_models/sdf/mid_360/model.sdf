@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <model name="mid_360">
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <cylinder>
+            <radius>0.04</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+      </visual>
+      <sensor name="UniqueSensorName" type="custom">
+        <visualize>true</visualize>
+        <plugin filename="RGLServerPluginInstance" name="rgl::RGLServerPluginInstance">
+          <range>
+            <min>0.1</min>
+            <max>100</max>
+          </range>
+          <update_rate>10</update_rate>
+          <update_on_paused_sim>false</update_on_paused_sim>
+          <topic>rgl_lidar</topic>
+          <frame>RGLLidar</frame>
+          <pattern_preset>Livox Mid360</pattern_preset>
+        </plugin>
+      </sensor>
+    </link>
+    <plugin name='rgl::RGLServerPluginManager' filename='RGLServerPluginManager'>
+      <do_ignore_entities_in_lidar_link>true</do_ignore_entities_in_lidar_link>
+    </plugin>
+  </model>
+</sdf>

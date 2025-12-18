@@ -112,5 +112,9 @@
       <longitude_deg> 8.546163739800146</longitude_deg>
       <elevation>0</elevation>
     </spherical_coordinates>
+
+    <plugin name="rgl::RGLServerPluginManager" filename="RGLServerPluginManager">
+      <do_ignore_entities_in_lidar_link>true</do_ignore_entities_in_lidar_link>
+    </plugin>
   </world>
 </sdf>

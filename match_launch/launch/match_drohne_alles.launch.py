@@ -56,6 +56,7 @@ def generate_launch_description():
             "PX4_HOME_LAT": "52.42449457140792",
             "PX4_HOME_LON": "9.620245153463955",
             "PX4_HOME_ALT": "20.0",
+            "PX4_SIM_SPEED_FACTOR": "0.5",
         },
     )
 
@@ -174,7 +175,21 @@ def generate_launch_description():
         output="screen",
     )
 
+    imu_timemachine = Node(
+        package="match_utils",
+        executable="imu_timemachine",
+        parameters=[{"use_sim_time": True}],
+        output="screen",
+    )
+
+    cloud_filter_node = Node(
+        package="match_utils",
+        executable="cloud_nan_filter",
+        parameters=[{"use_sim_time": True}],
+        output="screen"
+    )
+
     return LaunchDescription(
         declare_args
-        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, mavros_local_to_tf_node]
+        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node]
     )

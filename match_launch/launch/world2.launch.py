@@ -14,6 +14,10 @@ def generate_launch_description():
     headless = "false"   # "true" für headless-Modus
 
     match_models_path = get_package_share_directory("match_models")
+    rglgazeboplugin = get_package_share_directory("RGLGazeboPlugin")
+
+    print(f"Match Models Path: {match_models_path}")
+    print(f"RGLGazeboPlugin Path: {rglgazeboplugin}")
 
 
     world_file = f"{px4_dir}/Tools/simulation/gz/worlds/{world}.sdf"
@@ -34,10 +38,14 @@ def generate_launch_description():
     px4_gz_plugins = f"{px4_dir}/build/px4_sitl_default/src/modules/simulation/gz_plugins"
     px4_gz_server_config = f"{px4_dir}/src/modules/simulation/gz_bridge/server.config"
 
+
+    
+
     # Umgebungsvariablen erweitern
     gz_resource_path = f"{os.environ.get('GZ_SIM_RESOURCE_PATH', '')}{px4_gz_worlds}:{px4_gz_models}"
     gz_plugin_path = f"{os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')}{px4_gz_plugins}"
     gz_server_config_path = f"{os.environ.get('GZ_SIM_SERVER_CONFIG_PATH', '')}{px4_gz_server_config}"
+    gz_sim_plugin_path = f"{os.environ.get('GZ_SIM_PLUGIN_PATH', '')}{px4_gz_plugins}:{}"
 
 
     print(f"PX4 GZ Models: {px4_gz_models}")

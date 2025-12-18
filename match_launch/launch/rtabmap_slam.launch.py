@@ -9,8 +9,7 @@ def generate_launch_description():
             executable='rtabmap',
             name='rtabmap',
             output='screen',
-            parameters=[{
-                # Frames
+            parameters=[{                # Frames
                 'frame_id': 'base_link',
                 'map_frame_id': 'map',
                 'odom_frame_id': 'odom',
@@ -38,24 +37,13 @@ def generate_launch_description():
                 'Rtabmap/DetectionRate': '5.0',  # als String
                 'Reg/Strategy': '1',             # ICP
                 'Vis/FeatureType': '0',          # keine visuellen Features
+
+                'wait_for_transform': 2.0,     # Sekunden
             }],
             remappings=[
                 ('scan_cloud', '/front_depth/points_filtered'),
                 ('imu', '/mavros/imu/data_sim'),
                 ('odom', '/rtabmap/odom'),
             ]
-        ),
-
-        Node(
-            package='rtabmap_viz',
-            executable='rtabmap_viz',
-            name='rtabmapviz',
-            output='screen',
-            parameters=[{
-                'frame_id': 'base_link',
-                'odom_frame_id': 'odom',
-                'map_frame_id': 'map',
-                'use_sim_time': True,
-            }]
         )
     ])

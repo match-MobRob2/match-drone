@@ -4,6 +4,8 @@ from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2
 from sensor_msgs_py import point_cloud2 as pc2
 import math
+import numpy as np
+from sensor_msgs.msg import PointField
 
 
 class CloudNanFilter(Node):
@@ -32,31 +34,72 @@ class CloudNanFilter(Node):
         self.get_logger().info(f'Filtering NaNs: {topic_in} -> {topic_out}')
 
     def callback(self, msg: PointCloud2):
-        points = pc2.read_points(
-            msg,
-            field_names=("x", "y", "z"),
-            skip_nans=True            # WICHTIG: NaNs fliegen im C-Code raus
-        )
 
-        min_dist2 = 0.5 * 0.5
-        max_dist2 = 30.0 * 30.0
+        min_dist2 = 0.25
+        max_dist2 = 900.0
+        target_points = 10_000
 
-        filtered = []
-        for i, p in enumerate(points):
-            if i % 5 != 0:
-                continue  # subsample: nur jeden 5. Punkt behalten
+        try:
+            points = pc2.read_points_numpy(
+                msg,
+                field_names=("x", "y", "z"),
+                skip_nans=True,
+            )
+        except AttributeError:
+            points = np.asarray(
+                list(
+                    pc2.read_points(
+                        msg,
+                        field_names=("x", "y", "z"),
+                        skip_nans=True,
+                    )
+                ),
+                dtype=np.float32,
+            )
 
-            x, y, z = p
-            r2 = x*x + y*y + z*z
-            if min_dist2 < r2 < max_dist2:
-                filtered.append((x, y, z))
+        if points.size == 0:
+            return
+
+        r2 = np.einsum('ij,ij->i', points, points)
+        mask = (r2 > min_dist2) & (r2 < max_dist2)
+        filtered = points[mask]
+
+        filtered_count = filtered.shape[0]
+        if filtered_count == 0:
+            return
+
+        if filtered_count > target_points:
+            stride = max(1, filtered_count // target_points)
+            keep_mask = (np.arange(filtered_count) % stride) == 0
+            filtered = filtered[keep_mask]
+            if filtered.shape[0] > target_points:
+                filtered = filtered[:target_points]
+
+        if filtered.size == 0:
+            return
+
+        cloud_xyz = np.ascontiguousarray(filtered, dtype=np.float32)
 
         header = msg.header
         header.stamp = self.get_clock().now().to_msg()
-        out_msg = pc2.create_cloud_xyz32(header, filtered)
-        self.pub.publish(out_msg)
 
-        self.get_logger().info(f'Filtered pointcloud: {len(filtered)} points')
+        out_msg = PointCloud2()
+        out_msg.header = header
+        out_msg.height = 1
+        out_msg.width = cloud_xyz.shape[0]
+        out_msg.fields = [
+            PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
+            PointField(name='y', offset=4, datatype=PointField.FLOAT32, count=1),
+            PointField(name='z', offset=8, datatype=PointField.FLOAT32, count=1),
+        ]
+        out_msg.is_bigendian = False
+        out_msg.point_step = 12
+        out_msg.row_step = out_msg.point_step * out_msg.width
+        out_msg.is_dense = True
+        out_msg.data = cloud_xyz.tobytes()
+
+        self.pub.publish(out_msg)
+        self.get_logger().info(f'Filtered pointcloud: {out_msg.width} points')
 
 
 def main(args=None):

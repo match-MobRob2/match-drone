@@ -8,6 +8,16 @@
       <uri>model://match_drohne</uri>
     </include>
 
+    <include merge='true'>
+      <uri>model://mid_360</uri>
+    </include>
+
+    <joint name="mid_360_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>mid_360_link</child>
+      <pose relative_to="base_link">0 0 1 0 0 0</pose>
+    </joint>
+
     <link name="front_sensor_mount_link">
       <pose relative_to="base_link">0.23 0 0.08 0 0 0</pose>
       <inertial>

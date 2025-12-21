@@ -65,8 +65,95 @@
       <pose>0 0 0 0 0 0</pose>
     </model>
 
+    <model name="scale_netze">
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Netze.fbx</uri>
+            </mesh>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Netze.fbx</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <pose>0 0 0 0 0 0</pose>
+      </link>
+      <pose>0 0 0 0 0 3.14</pose>
+    </model>
+
+    <model name="scale_Leiter">
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Leiter.fbx</uri>
+            </mesh>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Leiter.fbx</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <pose>0 0 0 0 0 0</pose>
+      </link>
+      <pose>0 0 0 0 0 3.14</pose>
+    </model>
 
 
+    <model name="scale_Parkour">
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Parkour.fbx</uri>
+            </mesh>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_Parkour.fbx</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <pose>0 0 0 0 0 0</pose>
+      </link>
+      <pose>0 0 0 0 0 3.14</pose>
+    </model>
+
+
+    <model name="scale_Lueftung">
+      <static>true</static>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_L_ftung.fbx</uri>
+            </mesh>
+          </geometry>
+        </visual>
+        <collision name="collision">
+          <geometry>
+            <mesh>
+              <uri>meshes/Scale/Scale.fbx_L_ftung.fbx</uri>
+            </mesh>
+          </geometry>
+        </collision>
+        <pose>0 0 0 0 0 0</pose>
+      </link>
+      <pose>0 0 0 0 0 3.14</pose>
+    </model>
 
     <light name="sunUTC" type="directional">
       <pose>0 0 500 0 -0 0</pose>

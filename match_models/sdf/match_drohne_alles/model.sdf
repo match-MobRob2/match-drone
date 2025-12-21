@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <sdf version='1.9'>
+
   <model name='match_drohne_alles'>
     <self_collide>false</self_collide>
     <static>false</static>
@@ -9,13 +10,14 @@
     </include>
 
     <include merge='true'>
+      <pose relative_to="base_link">0 0 1 0 0 0</pose>
       <uri>model://mid_360</uri>
     </include>
 
     <joint name="mid_360_joint" type="fixed">
       <parent>base_link</parent>
-      <child>mid_360_link</child>
-      <pose relative_to="base_link">0 0 1 0 0 0</pose>
+      <child>link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
     </joint>
 
     <link name="front_sensor_mount_link">
@@ -98,7 +100,7 @@
       <pose relative_to="base_link">0 0 0 0 0 0</pose>
     </joint>
 
-    <link name="top_lidar_link">
+    <!-- <link name="top_lidar_link">
       <pose relative_to="base_link">0 0 0.2 0 0 0</pose>
       <inertial>
         <mass>0.02</mass>
@@ -167,7 +169,7 @@
       <parent>base_link</parent>
       <child>top_lidar_link</child>
       <pose relative_to="base_link">0 0 0 0 0 0</pose>
-    </joint>
+    </joint> -->
 
         <frame name="front_rgb_camera_frame" attached_to="front_sensor_mount_link">
       <!-- kleine Offsets möglich, wenn die Kamera nicht genau im Link-Zentrum sitzt -->
@@ -178,9 +180,9 @@
       <pose>0 0 0 0 0 0</pose>
     </frame>
 
-    <frame name="top_lidar_frame" attached_to="top_lidar_link">
-      <!-- aktuell identisch mit top_lidar_link -->
+     <!-- <frame name="top_lidar_frame" attached_to="top_lidar_link">
       <pose>0 0 0 0 0 0</pose>
-    </frame>
+    </frame>  -->
+
   </model>
 </sdf>

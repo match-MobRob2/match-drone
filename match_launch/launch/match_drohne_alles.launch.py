@@ -12,6 +12,8 @@ MATCH_MODELS_SHARE = get_package_share_directory("match_models")
 
 def generate_launch_description():
     default_px4_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/PX4-Autopilot'))
+    rglgazebogui = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/RGLGazeboPlugin/install/RGLVisualize'))
+
     default_spawn_model = os.path.join(
         MATCH_MODELS_SHARE, "sdf", "match_drohne_alles", "model.sdf"
     )
@@ -76,6 +78,9 @@ def generate_launch_description():
 
     def make_spawn_timer(context, *args, **kwargs):
         spawn_process = ExecuteProcess(
+            additional_env={
+                "GZ_GUI_PLUGIN_PATH": rglgazebogui,
+            },
             cmd=[
                 "ros2",
                 "run",

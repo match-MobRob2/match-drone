@@ -28,6 +28,12 @@ class TimestampRewriter(Node):
             reliability=QoSReliabilityPolicy.BEST_EFFORT
         )
 
+        output_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=10,
+            reliability=QoSReliabilityPolicy.RELIABLE
+        )
+
         self.sub = self.create_subscription(
             self.msg_type,
             topic_in,
@@ -38,7 +44,7 @@ class TimestampRewriter(Node):
         self.pub = self.create_publisher(
             self.msg_type,
             topic_out,
-            sensor_qos
+            output_qos
         )
 
         self.get_logger().info(f"Rewriting timestamps: {topic_in} → {topic_out}")

@@ -16,3 +16,7 @@ export GZ_SIM_SYSTEM_PLUGIN_PATH=/home/luca/match_drone/src/RGLGazeboPlugin/inst
 /home/luca/match_drone/src/RGLGazeboPlugin/install/RGLVisualize
 
 export GZ_GUI_PLUGIN_PATH=/home/luca/match_drone/src/RGLGazeboPlugin/install/RGLVisualize:$GZ_GUI_PLUGIN_PATH
+
+
+
+https://github.com/RobotecAI/RGLGazeboPlugin/issues/53sdsd

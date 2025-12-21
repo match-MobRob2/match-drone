@@ -14,7 +14,11 @@ def generate_launch_description():
     headless = "false"   # "true" für headless-Modus
 
     match_models_path = get_package_share_directory("match_models")
-    rglgazeboplugin = get_package_share_directory("RGLGazeboPlugin")
+    rglgazeboplugin = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/RGLGazeboPlugin/install/RGLServerPlugin'))
+    rglvisualize = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/RGLGazeboPlugin/install/RGLVisualize'))
+    lidarpaterns = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/RGLGazeboPlugin/lidar_patterns'))
+    
+    gz_gui_config = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/match_utils/config/gui.config'))
 
     print(f"Match Models Path: {match_models_path}")
     print(f"RGLGazeboPlugin Path: {rglgazeboplugin}")
@@ -36,16 +40,14 @@ def generate_launch_description():
     px4_gz_models = f"{px4_dir}/Tools/simulation/gz/models"
     px4_gz_worlds = f"{px4_dir}/Tools/simulation/gz/worlds"
     px4_gz_plugins = f"{px4_dir}/build/px4_sitl_default/src/modules/simulation/gz_plugins"
-    px4_gz_server_config = f"{px4_dir}/src/modules/simulation/gz_bridge/server.config"
-
-
-    
+    px4_gz_server_config = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../../../src/match_models/config/server.config'))
 
     # Umgebungsvariablen erweitern
     gz_resource_path = f"{os.environ.get('GZ_SIM_RESOURCE_PATH', '')}{px4_gz_worlds}:{px4_gz_models}"
-    gz_plugin_path = f"{os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')}{px4_gz_plugins}"
+    gz_plugin_path = f"{os.environ.get('GZ_SIM_SYSTEM_PLUGIN_PATH', '')}{px4_gz_plugins}:{rglgazeboplugin}"
     gz_server_config_path = f"{os.environ.get('GZ_SIM_SERVER_CONFIG_PATH', '')}{px4_gz_server_config}"
-    gz_sim_plugin_path = f"{os.environ.get('GZ_SIM_PLUGIN_PATH', '')}{px4_gz_plugins}:{}"
+    gz_sim_plugin_path = f"{os.environ.get('GZ_SIM_PLUGIN_PATH', '')}{px4_gz_plugins}"
+    gz_gui_plugin_path = f"{os.environ.get('GZ_GUI_PLUGIN_PATH', '')}{rglvisualize}"
 
 
     print(f"PX4 GZ Models: {px4_gz_models}")
@@ -83,7 +85,7 @@ def generate_launch_description():
                 f"echo $GZ_SIM_RESOURCE_PATH && "
                 f"echo $GZ_SIM_SYSTEM_PLUGIN_PATH && "
                 f"echo $GZ_SIM_SERVER_CONFIG_PATH && "
-                f"gz sim --verbose=1 -r -s {world}"
+                f"gz sim --verbose=4 -r -s {world}"
             ],
             additional_env = {
                 "PX4_GZ_MODELS": px4_gz_models,
@@ -93,6 +95,7 @@ def generate_launch_description():
                 "GZ_SIM_RESOURCE_PATH": gz_resource_path,
                 "GZ_SIM_SYSTEM_PLUGIN_PATH": gz_plugin_path,
                 "GZ_SIM_SERVER_CONFIG_PATH": gz_server_config_path,
+                "RGL_PATTERNS_DIR": lidarpaterns,
             },
             output="screen"
         ),
@@ -102,8 +105,11 @@ def generate_launch_description():
             actions=[
                 ExecuteProcess(
                     name="gazebo_client",
+                    additional_env = {
+                        "GZ_GUI_PLUGIN_PATH": gz_gui_plugin_path,
+                    },
                     cmd=[
-                        "gz", "sim", "-g"
+                        "gz", "sim", "--verbose=4", "-g", "--gui-config" , gz_gui_config
                     ],
                     output="screen"
                 ),

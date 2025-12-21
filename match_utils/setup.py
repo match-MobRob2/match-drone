@@ -27,6 +27,7 @@ setup(
             'mavros_local_to_tf = match_utils.mavros_local_to_tf:main',
             'imu_timemachine = match_utils.imu_timemachine:main',
             'cloud_nan_filter = match_utils.cloud_nan_filter:main',
+            'pointcloud_to_livox = match_utils.pointcloud_to_livox:main',
         ],
     },
 )

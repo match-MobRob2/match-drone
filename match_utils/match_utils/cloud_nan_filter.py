@@ -99,7 +99,6 @@ class CloudNanFilter(Node):
         out_msg.data = cloud_xyz.tobytes()
 
         self.pub.publish(out_msg)
-        self.get_logger().info(f'Filtered pointcloud: {out_msg.width} points')
 
 
 def main(args=None):

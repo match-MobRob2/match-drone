@@ -1,0 +1,1 @@
+Gazebo gui config mit korrektem plugin

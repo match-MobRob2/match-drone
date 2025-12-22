@@ -27,7 +27,7 @@ def generate_launch_description():
             default_value="scale",
             description="Gazebo-Weltname / PX4_GZ_WORLD.",
         ),
-        DeclareLaunchArgument("spawn_x", default_value="0.0", description="Spawn X."),
+        DeclareLaunchArgument("spawn_x", default_value="-18.0", description="Spawn X."),
         DeclareLaunchArgument("spawn_y", default_value="0.0", description="Spawn Y."),
         DeclareLaunchArgument("spawn_z", default_value="1.0", description="Spawn Z."),
     ]
@@ -53,12 +53,11 @@ def generate_launch_description():
                 spawn_z,
                 TextSubstitution(text=",0,0,0"),
             ],
-            "PX4_GZ_STANDALONE": "true",
+            "PX4_GZ_STANDALONE": "1",
             "PX4_GZ_WORLD": world,
             "PX4_HOME_LAT": "52.42449457140792",
             "PX4_HOME_LON": "9.620245153463955",
-            "PX4_HOME_ALT": "20.0",
-            "PX4_SIM_SPEED_FACTOR": "0.5",
+            "PX4_HOME_ALT": "20.0"
         },
     )
 
@@ -162,7 +161,11 @@ def generate_launch_description():
 
         "/match_drohne_alles/top_lidar/points/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
 
-        "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock"
+        "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock",
+
+        "/rgl_lidar/imu@sensor_msgs/msg/Imu@gz.msgs.IMU",
+
+        "/rgl_lidar@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked"
     ]
 
 
@@ -194,7 +197,15 @@ def generate_launch_description():
         output="screen"
     )
 
+    pointcloud_to_livox = Node(
+        package="match_utils",
+        executable="pointcloud_to_livox",
+        parameters=[{"use_sim_time": True}],
+        output="screen"
+    )
+
+
     return LaunchDescription(
         declare_args
-        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node]
+        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node, pointcloud_to_livox]
     )

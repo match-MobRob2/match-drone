@@ -21,7 +21,7 @@ class PointCloudToLivox(Node):
     def __init__(self):
         super().__init__('pointcloud_to_livox')
 
-        self.input_topic = self.declare_parameter('input_topic', '/rgl_lidar/world').value
+        self.input_topic = self.declare_parameter('input_topic', '/rgl_lidar').value
         self.output_topic = self.declare_parameter('output_topic', '/livox/lidar').value
 
         # If empty -> use incoming frame_id (recommended unless you apply TF yourself)

@@ -57,7 +57,8 @@ def generate_launch_description():
             "PX4_GZ_WORLD": world,
             "PX4_HOME_LAT": "52.42449457140792",
             "PX4_HOME_LON": "9.620245153463955",
-            "PX4_HOME_ALT": "20.0"
+            "PX4_HOME_ALT": "20.0",
+            "PX4_SIM_SPEED_FACTOR": "0.5",
         },
     )
 

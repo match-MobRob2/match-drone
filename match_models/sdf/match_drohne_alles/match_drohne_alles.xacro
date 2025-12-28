@@ -44,7 +44,7 @@
   <joint name="front_sensor_mount_joint" type="fixed">
     <parent link="base_link"/>
     <child link="front_sensor_mount_link"/>
-    <origin xyz="${front_sensor_offset_x} ${front_sensor_offset_y} ${front_sensor_offset_z}" rpy="0 0 0"/>
+    <origin xyz="0.1 0 -0.08" rpy="0 0.2 0"/>
   </joint>
 
   <link name="front_rgb_camera_link">

@@ -1,4 +1,4 @@
-<img src="docs/img/grrr.png">
+<img src="docs/img/thisisfine.jpeg">
 
 # 🕊️ Mächtige Match Möve Marvin
 <!-- Peak Engineering: eine Möve, die fliegt. -->
@@ -195,6 +195,8 @@ Eine Sammlung von Übungsmissionen mit Startcode und Musterlösungen findest du 
 * 🧠 Debugging-Level: „kann man machen“
 
 </details>
+
+<img src="docs/img/grrr.png">
 
 <!--
 Easter Egg:

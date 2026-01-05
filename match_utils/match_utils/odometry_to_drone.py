@@ -79,7 +79,7 @@ class OdometryToDrone(Node):
         
         # Publishers and Subscribers
         self.sub = self.create_subscription(Odometry, '/Odometry', self.odom_callback, 10)
-        self.pub = self.create_publisher(Odometry, '/mavros/odometry/in', 10)
+        self.pub = self.create_publisher(Odometry, '/mavros/odometry/out', 10)
         
         self.get_logger().info(f"Odometry to Drone node started. ENU->NED: {self.enu_to_ned}")
 

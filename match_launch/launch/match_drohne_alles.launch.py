@@ -42,8 +42,8 @@ def generate_launch_description():
         cwd=default_px4_dir,
         output="screen",
         additional_env={
-            "PX4_SYS_AUTOSTART": "40014",
-            "PX4_SIM_MODEL": "match_drohne_alles",
+            "PX4_SYS_AUTOSTART": "40015",
+            "PX4_SIM_MODEL": "match_drohne_nogps",
             "PX4_SIMULATOR": "GZ",
             "PX4_GZ_MODEL_POSE": [
                 spawn_x,
@@ -137,6 +137,17 @@ def generate_launch_description():
         ],
     )
 
+    static_odometry_tf = Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name='odometry_frame_tf',
+        arguments=[
+            '0', '0', '0', '0', '0', '0',
+            'body',
+            'base_link',
+        ],
+    )
+
 
     static_depth_tf = Node(
         package='tf2_ros',
@@ -208,5 +219,5 @@ def generate_launch_description():
 
     return LaunchDescription(
         declare_args
-        + [px4_process, mavros_timer, robot_state_publisher_node, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node, pointcloud_to_livox]
+        + [px4_process, mavros_timer, robot_state_publisher_node, static_odometry_tf, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node, pointcloud_to_livox]
     )

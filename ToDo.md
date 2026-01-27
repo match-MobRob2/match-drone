@@ -1,0 +1,2 @@
+fbx -> obj
+rate limits

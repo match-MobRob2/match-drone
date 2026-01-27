@@ -58,7 +58,7 @@ def generate_launch_description():
             "PX4_HOME_LAT": "52.42449457140792",
             "PX4_HOME_LON": "9.620245153463955",
             "PX4_HOME_ALT": "20.0",
-            "PX4_SIM_SPEED_FACTOR": "0.5",
+            "PX4_SIM_SPEED_FACTOR": "1",
         },
     )
 
@@ -167,12 +167,6 @@ def generate_launch_description():
         "/match_drohne_alles/front_depth/image@sensor_msgs/msg/Image[gz.msgs.Image",
         "/match_drohne_alles/front_depth/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
 
-        "/match_drohne_alles/front_depth/image/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-
-        "/match_drohne_alles/top_lidar/points@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-
-        "/match_drohne_alles/top_lidar/points/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-
         "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock",
 
         "/rgl_lidar/imu@sensor_msgs/msg/Imu@gz.msgs.IMU",
@@ -219,5 +213,5 @@ def generate_launch_description():
 
     return LaunchDescription(
         declare_args
-        + [px4_process, mavros_timer, robot_state_publisher_node, static_odometry_tf, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine, cloud_filter_node, pointcloud_to_livox]
+        + [px4_process, mavros_timer, robot_state_publisher_node, static_odometry_tf, static_lidar_tf, static_depth_tf, sensor_bridge_node, imu_timemachine]
     )

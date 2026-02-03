@@ -85,34 +85,31 @@ printf "\n"
 printf "${BOLD}Installing PX4-Autopilot...${RESET}\n"
 pwd
 cd ..
-git clone --branch v1.16.1 --single-branch https://github.com/PX4/PX4-Autopilot --recursive 
+git clone --branch v1.16.1 --single-branch https://github.com/PX4/PX4-Autopilot --recursive >> install.log 2>&1
 cd PX4-Autopilot
 touch COLCON_IGNORE
-bash ./Tools/setup/ubuntu.sh
+bash ./Tools/setup/ubuntu.sh >> install.log 2>&1
 export DONT_RUN=1
-make px4_sitl 
+make px4_sitl >> install.log 2>&1
 printf "${GREEN}PX4-Autopilot installation completed.${RESET}\n"
 printf "\n"
 
-printf "Installing MAVROS... \n"
-sudo apt install ros-humble-mavros ros-humble-mavros-extras -y
-wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh -O - | sudo bash 
-sudo bash ./install_geographiclib_datasets.sh 
+printf "Installing MAVROS... \t"
+sudo apt install ros-humble-mavros ros-humble-mavros-extras -y >> install.log 2>&1
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh -O - | sudo bash >> install.log 2>&1
+sudo bash ./install_geographiclib_datasets.sh >> install.log 2>&1
+printf "[${GREEN}✔${RESET}]\n"
 
-printf "Installing Custom Models"... \n"
+printf "Installing Custom Models"... \t"
 cd ..
 cd src/match_models/
 chmod +x install_models.sh
-./install_models.sh
+./install_models.sh >> install.log 2>&1
 cd ..
 cd PX4-Autopilot
 export DONT_RUN=1
-make px4_sitl
-printf "Installing Custom Models... [${GREEN}✔${RESET}]\n"
-printf "\n"
-printf "\n"
-printf "Installing FAST_LIO2... \n"
-cd ..
-pwd
-git clone 
+make px4_sitl >> install.log 2>&1
+printf "[${GREEN}✔${RESET}]\n"
+
+
 

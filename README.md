@@ -146,12 +146,4 @@ External Dependencies (Git Submodules)
 
 ---
 
-## Documentation
-
-- **[CLAUDE.md](CLAUDE.md)** - Project instructions and development guidelines
-- **[misc/PROJECT.md](misc/PROJECT.md)** - Detailed architecture documentation
-- **[misc/STATE.md](misc/STATE.md)** - Implementation status and roadmap
-
----
-
 <img src="docs/img/grrr.png" width="300">

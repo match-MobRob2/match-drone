@@ -1,0 +1,45 @@
+# Global Planner Configuration for OMPL-based 3D Path Planning
+
+global_planner:
+  ros__parameters:
+    # Planner algorithm (RRTstar, RRTConnect, PRM, etc.)
+    planner_type: "RRTstar"
+
+    # Planning time limit (seconds)
+    planning_time: 5.0
+
+    # State space (SE3 = position + orientation in 3D)
+    state_space: "SE3"
+
+    # Workspace bounds (meters)
+    bounds:
+      min_x: -100.0
+      max_x: 100.0
+      min_y: -100.0
+      max_y: 100.0
+      min_z: 0.5    # Minimum flight height
+      max_z: 20.0   # Maximum flight height
+
+    # Path optimization
+    optimization:
+      simplify_path: true
+      smoothing_iterations: 10
+      optimize_time: 2.0  # Time budget for optimization (seconds)
+
+    # Collision checking
+    collision_checking:
+      resolution: 0.1        # Check resolution (meters)
+      safety_distance: 1.0   # Safety margin to obstacles (meters)
+
+    # RRT* specific parameters
+    rrt_star:
+      range: 5.0           # Max connection distance
+      goal_bias: 0.05      # Probability of sampling goal
+      rewire_factor: 1.1   # Rewiring factor
+
+    # Performance
+    max_iterations: 10000  # Max planning iterations
+    timeout_scaling: 1.0   # Scale timeout based on distance
+
+    # Validity checking
+    validity_checking_resolution: 0.01  # State validation resolution

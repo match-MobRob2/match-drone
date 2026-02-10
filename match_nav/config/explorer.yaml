@@ -1,0 +1,45 @@
+# Frontier Explorer Configuration for Autonomous Exploration
+
+frontier_explorer:
+  ros__parameters:
+    # Exploration loop rate (Hz)
+    exploration_rate: 1.0
+
+    # Frontier detection
+    frontier_detection:
+      min_frontier_size: 10      # Min voxels per frontier cluster
+      max_exploration_range: 50.0  # Max distance from start (meters)
+      cluster_tolerance: 0.5      # DBSCAN clustering distance (meters)
+      information_radius: 5.0     # Radius for information gain calculation (meters)
+
+    # Frontier evaluation
+    scoring:
+      weight_information: 1.0     # Weight for information gain
+      weight_distance: 0.3        # Weight for distance cost
+      weight_safety: 0.5          # Weight for safety (distance to obstacles)
+      min_safety_distance: 2.0    # Min distance to obstacles (meters)
+
+    # Goal selection
+    goal_selection:
+      reachability_check: true    # Check if frontier is reachable
+      reachability_timeout: 2.0   # Planning timeout for reachability check
+      min_height: 1.0             # Min frontier height (meters)
+      max_height: 15.0            # Max frontier height (meters)
+
+    # Exploration behavior
+    behavior:
+      revisit_frontiers: false    # Don't revisit explored frontiers
+      max_failed_attempts: 3      # Max attempts per frontier
+      cooldown_time: 5.0          # Wait time after failed attempt (seconds)
+
+    # Termination conditions
+    termination:
+      min_frontiers: 1            # Stop if fewer frontiers remain
+      max_exploration_time: 0.0   # Max time (0 = unlimited, seconds)
+      coverage_threshold: 0.95    # Stop at X% coverage (0-1)
+
+    # Visualization
+    visualization:
+      publish_frontiers: true     # Publish frontier markers
+      publish_goals: true         # Publish exploration goals
+      marker_lifetime: 5.0        # Marker lifetime (seconds)

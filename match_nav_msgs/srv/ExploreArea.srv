@@ -1,0 +1,20 @@
+# Explore Area Service - Autonomous frontier-based exploration
+
+# Exploration boundary (optional, empty = unlimited)
+geometry_msgs/PolygonStamped exploration_boundary
+
+# Maximum exploration duration (seconds, 0 = unlimited)
+float32 max_duration
+
+---
+# Success flag
+bool success
+
+# Number of frontiers explored
+uint32 frontiers_explored
+
+# Estimated area covered (square meters)
+float32 area_covered
+
+# Status message
+string message

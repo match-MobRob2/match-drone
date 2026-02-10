@@ -180,7 +180,3 @@ match_nav/
 - ⚠️ Problem bekannt, Lösung vorhanden
 
 ---
-
-**Erstellt**: 2026-02-10
-**Team**: Match Drone (Luca, Tobi)
-**Lizenz**: MIT

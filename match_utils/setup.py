@@ -29,6 +29,8 @@ setup(
             'cloud_nan_filter = match_utils.cloud_nan_filter:main',
             'pointcloud_to_livox = match_utils.pointcloud_to_livox:main',
             'odometry_to_drone = match_utils.odometry_to_drone:main',
+            'lidar_camera_fusion = match_utils.map_livox_to_realsense:main',
+            'map_livox_to_realsense = match_utils.map_livox_to_realsense:main',
         ],
     },
 )

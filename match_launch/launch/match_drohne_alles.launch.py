@@ -42,8 +42,8 @@ def generate_launch_description():
         cwd=default_px4_dir,
         output="screen",
         additional_env={
-            "PX4_SYS_AUTOSTART": "40015",
-            "PX4_SIM_MODEL": "match_drohne_nogps",
+            "PX4_SYS_AUTOSTART": "40014",
+            "PX4_SIM_MODEL": "match_drohne_alles",
             "PX4_SIMULATOR": "GZ",
             "PX4_GZ_MODEL_POSE": [
                 spawn_x,
@@ -123,7 +123,7 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="screen",
-        parameters=[{"robot_description": robot_description_content}],
+        parameters=[{"robot_description": robot_description_content, "use_sim_time": True}],
     )
 
     static_lidar_tf = Node(
@@ -135,6 +135,7 @@ def generate_launch_description():
             'top_lidar_frame',
             'match_drohne_alles_0/top_lidar_link/top_lidar',
         ],
+        parameters=[{"use_sim_time": True}],
     )
 
     static_odometry_tf = Node(
@@ -146,6 +147,7 @@ def generate_launch_description():
             'body',
             'base_link',
         ],
+        parameters=[{"use_sim_time": True}],
     )
 
 
@@ -158,6 +160,7 @@ def generate_launch_description():
             'front_depth_camera_optical_frame',
             'match_drohne_alles_0/front_sensor_mount_link/front_depth_camera',
         ],
+        parameters=[{"use_sim_time": True}],
     )
 
     bridge_arguments = [
@@ -179,6 +182,7 @@ def generate_launch_description():
         package="ros_gz_bridge",
         executable="parameter_bridge",
         arguments=bridge_arguments,
+        parameters=[{"use_sim_time": True}],
         output="screen",
     )
 

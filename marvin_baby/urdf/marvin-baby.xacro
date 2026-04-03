@@ -1,0 +1,228 @@
+<?xml version="1.0"?>
+<robot name="mecanum_robot"
+       xmlns:xacro="http://www.ros.org/wiki/xacro"
+       xmlns:gz="http://gazebosim.org/schema">
+
+  <!-- ============================================================
+       Dimensionen (an Demo-Proportionen angelehnt, aber kleiner)
+       ============================================================ -->
+  <xacro:property name="chassis_x"    value="0.26"/>
+  <xacro:property name="chassis_y"    value="0.20"/>
+  <xacro:property name="chassis_z"    value="0.065"/>
+  <xacro:property name="chassis_mass" value="1.5"/>
+
+  <xacro:property name="wheel_radius" value="0.030"/>
+  <xacro:property name="wheel_mass"   value="0.15"/>
+
+  <!-- Radmittelpunkt relativ zu base_link (wie Demo: direkt am Chassis) -->
+  <xacro:property name="wx" value="0.1"/>   <!-- halb-Radstand  -->
+  <xacro:property name="wy" value="0.135"/>   <!-- halb-Spurbreite -->
+  <!-- z: Rad-Mittelpunkt = Chassis-Unterseite = wheel_radius über Boden -->
+  <xacro:property name="wz" value="${-chassis_z/2}"/>
+
+  <!-- ============================================================
+       Inertia-Makros
+       ============================================================ -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${m*(y*y+z*z)/12}" ixy="0" ixz="0"
+               iyy="${m*(x*x+z*z)/12}" iyz="0"
+               izz="${m*(x*x+y*y)/12}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- Kugel-Inertia (wie Demo-Räder) -->
+  <xacro:macro name="sphere_inertia" params="m r">
+    <inertial>
+      <mass value="${m}"/>
+      <inertia ixx="${2*m*r*r/5}" ixy="0" ixz="0"
+               iyy="${2*m*r*r/5}" iyz="0"
+               izz="${2*m*r*r/5}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- ============================================================
+       base_link  (Chassis, Geometrie direkt hier – wie Demo)
+       ============================================================ -->
+  <link name="base_link">
+    <visual>
+      <origin xyz="0 0 0.1" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://marvin_baby/urdf/mesh/Baby-Marvin.glb" scale="1 1 1"/>
+      </geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry><box size="${chassis_x} ${chassis_y} ${chassis_z}"/></geometry>
+    </collision>
+    <xacro:box_inertia m="${chassis_mass}"
+                       x="${chassis_x}" y="${chassis_y}" z="${chassis_z}"/>
+  </link>
+
+  <gazebo reference="base_link">
+    <visual>
+      <cast_shadows>true</cast_shadows>
+    </visual>
+  </gazebo>
+
+  <!-- ============================================================
+       Mecanum-Rad-Makr
+       Identisch zum Demo:
+         rpy="-pi/2 0 0", axis="0 0 1" für ALLE Räder
+         Sphere-Kollision
+         fdir1 in <collision><surface><friction><ode> Block
+       ============================================================ -->
+  <xacro:macro name="mecanum_wheel" params="name x y fdir1">
+
+    <joint name="${name}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child  link="${name}_wheel"/>
+      <origin xyz="${x} ${y} ${wz}" rpy="${-pi/2} 0 0"/>
+      <axis xyz="0 0 1"/>
+      <dynamics damping="0.2"/>
+    </joint>
+
+    <link name="${name}_wheel">
+      <!-- Visual: Zylinder sieht besser aus als Kugel -->
+      <visual>
+        <geometry>
+          <mesh filename="package://marvin_baby/urdf/mesh/Baby-Marvin-Rad.glb" scale="1 1 1"/>
+        </geometry>
+      </visual>
+      <!-- Kollision: Kugel – genau wie Demo (fdir1 funktioniert damit) -->
+      <collision>
+        <geometry><sphere radius="${wheel_radius}"/></geometry>
+      </collision>
+      <xacro:sphere_inertia m="${wheel_mass}" r="${wheel_radius}"/>
+    </link>
+
+    <!-- Friction: exakt gleiche Struktur wie Demo -->
+    <gazebo reference="${name}_wheel">
+      <collision>
+        <surface>
+          <friction>
+            <ode>
+              <mu>1.0</mu>
+              <mu2>0.0</mu2>
+              <fdir1 gz:expressed_in="base_link">${fdir1}</fdir1>
+            </ode>
+          </friction>
+        </surface>
+      </collision>
+    </gazebo>
+
+  </xacro:macro>
+
+  <!-- ============================================================
+       Vier Mecanum-Räder (fdir1 identisch mit Demo)
+       ============================================================ -->
+  <xacro:mecanum_wheel name="front_left"  x=" ${wx}" y=" ${wy}" fdir1="1 -1 0"/>
+  <xacro:mecanum_wheel name="front_right" x=" ${wx}" y="-${wy}" fdir1="1  1 0"/>
+  <xacro:mecanum_wheel name="rear_left"   x="-${wx}" y=" ${wy}" fdir1="1  1 0"/>
+  <xacro:mecanum_wheel name="rear_right"  x="-${wx}" y="-${wy}" fdir1="1 -1 0"/>
+
+  <!-- ============================================================
+       ros2_control (wie Demo: mit min/max auf velocity)
+       ============================================================ -->
+  <ros2_control name="GazeboSimSystem" type="system">
+    <hardware>
+      <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+    </hardware>
+    <joint name="front_left_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max"> 10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="front_right_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max"> 10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="rear_left_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max"> 10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="rear_right_wheel_joint">
+      <command_interface name="velocity">
+        <param name="min">-10</param>
+        <param name="max"> 10</param>
+      </command_interface>
+      <state_interface name="position"/>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system"
+            name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(find marvin_baby)/config/controller.yaml</parameters>
+    </plugin>
+  </gazebo>
+
+  <!-- ============================================================
+       IMU
+       ============================================================ -->
+  <link name="imu_link">
+    <inertial>
+      <mass value="0.01"/>
+      <inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6"/>
+    </inertial>
+  </link>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ============================================================
+       Livox Mid-360 (RGL Lidar + IMU)
+       ============================================================ -->
+  <link name="mid_360_link">
+    <visual>
+      <geometry><cylinder radius="0.04" length="0.06"/></geometry>
+    </visual>
+    <inertial>
+      <mass value="0.02"/>
+      <inertia ixx="5e-5" ixy="0" ixz="0" iyy="5e-5" iyz="0" izz="5e-5"/>
+    </inertial>
+  </link>
+  <joint name="mid_360_joint" type="fixed">
+    <parent link="base_link"/>
+    <child  link="mid_360_link"/>
+    <origin xyz="0.1 0 0.07" rpy="0 0.52 0"/>
+  </joint>
+
+  <gazebo reference="mid_360_link">
+    <sensor name="RGL_Lidar_MID360" type="custom" gz:type="rgl_lidar">
+      <visualize>true</visualize>
+      <plugin filename="RGLServerPluginInstance" name="rgl::RGLServerPluginInstance">
+        <range>
+          <min>0.1</min>
+          <max>100</max>
+        </range>
+        <update_rate>10</update_rate>
+        <update_on_paused_sim>false</update_on_paused_sim>
+        <topic>rgl_lidar</topic>
+        <frame>mid_360_link</frame>
+        <pattern_preset>Livox Mid360</pattern_preset>
+      </plugin>
+    </sensor>
+    <sensor name="mid_360_imu" type="imu">
+      <always_on>true</always_on>
+      <update_rate>200</update_rate>
+      <topic>rgl_lidar/imu</topic>
+    </sensor>
+  </gazebo>
+
+</robot>

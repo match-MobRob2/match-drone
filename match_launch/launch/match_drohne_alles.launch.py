@@ -169,6 +169,7 @@ def generate_launch_description():
 
         "/match_drohne_alles/front_depth/image@sensor_msgs/msg/Image[gz.msgs.Image",
         "/match_drohne_alles/front_depth/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+        "/match_drohne_alles/front_depth/image/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
 
         "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock",
 

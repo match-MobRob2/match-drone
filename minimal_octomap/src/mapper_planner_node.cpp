@@ -34,7 +34,7 @@ NavNode::NavNode() : Node("nav_node") {
     esdf_slice_xz_pub_ = create_publisher<nav_msgs::msg::OccupancyGrid>("/esdf_slice_xz", 10);
     local_path_pub_ = create_publisher<nav_msgs::msg::Path>("/local_planned_path", 10);
     esdf_timer_ = create_wall_timer(
-        std::chrono::seconds(1),
+        std::chrono::milliseconds(500),
         std::bind(&NavNode::computeAndPublishEsdf, this));
 }
 
@@ -42,19 +42,19 @@ void NavNode::octomapCallback(const octomap_msgs::msg::Octomap::SharedPtr msg) {
     tree_.reset(dynamic_cast<octomap::OcTree*>(
         octomap_msgs::msgToMap(*msg)));
 
-    if (!tree_)
+    if (!tree_) {
         RCLCPP_ERROR(get_logger(), "Deserialisierung fehlgeschlagen");
-    else
+    } else {
         RCLCPP_INFO(get_logger(), "Karte empfangen — %zu Knoten",
             tree_->getNumLeafNodes());
+        octomap_updated_ = true;
+        if (state_ == State::NAVIGATING)
+            AstarPlanner();
+    }
 }
 
 void NavNode::dronePoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
     drone_pose_ = *msg;
-    RCLCPP_INFO(get_logger(), "Drohnenpose aktualisiert: (%.2f, %.2f, %.2f)",
-        drone_pose_.pose.position.x,
-        drone_pose_.pose.position.y,
-        drone_pose_.pose.position.z);
 }
 
 bool NavNode::isGoalDifferent(const geometry_msgs::msg::PoseStamped& new_goal) const {
@@ -83,7 +83,7 @@ void NavNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
     if (!replan_timer_) {
         replan_timer_ = create_wall_timer(
-            std::chrono::seconds(1),
+            std::chrono::seconds(2),
             std::bind(&NavNode::replanTimerCallback, this));
     }
 }
@@ -104,7 +104,7 @@ void NavNode::replanTimerCallback() {
         return;
     }
 
-    RCLCPP_INFO(get_logger(), "Replan (Entfernung zum Ziel: %.2f m)", dist);
+    RCLCPP_INFO(get_logger(), "Entfernung zum Ziel: %.2f m — Replan", dist);
     AstarPlanner();
 }
 
@@ -147,36 +147,48 @@ void NavNode::AstarPlanner() {
         return;
     }
 
-    // Collision check at coarser depth — one search() replaces entire inflation loop
-    auto is_collision_free = [&](const octomap::OcTreeKey& k) -> bool {
-        octomap::OcTreeNode* node = tree_->search(k, search_depth);
-        return !node || !tree_->isNodeOccupied(node);
+    // Collision-Check (Inflation) + Unknown-Penalty (nur Zentral-Voxel)
+    // Rückgabe: Zusatzkosten für Voxel, < 0 = blockiert
+    constexpr int inflate_r = 2;
+    using KeyHash = octomap::OcTreeKey::KeyHash;
+    std::unordered_map<octomap::OcTreeKey, double, KeyHash> cost_cache;
+
+    auto voxel_cost = [&](const octomap::OcTreeKey& k) -> double {
+        auto it = cost_cache.find(k);
+        if (it != cost_cache.end()) return it->second;
+
+        // Inflation: nur Occupied-Check
+        for (int dx = -inflate_r; dx <= inflate_r; ++dx) {
+            for (int dy = -inflate_r; dy <= inflate_r; ++dy) {
+                for (int dz = -inflate_r; dz <= inflate_r; ++dz) {
+                    octomap::OcTreeKey nk(k[0] + dx, k[1] + dy, k[2] + dz);
+                    octomap::OcTreeNode* node = tree_->search(nk, search_depth);
+                    if (node && tree_->isNodeOccupied(node)) {
+                        cost_cache[k] = -1.0;
+                        return -1.0;  // Blockiert
+                    }
+                }
+            }
+        }
+
+        // Unknown-Penalty: nur Zentral-Voxel prüfen
+        double cost = 0.0;
+        octomap::OcTreeNode* center = tree_->search(k, search_depth);
+        if (!center) cost = unknown_penalty_weight_;
+
+        cost_cache[k] = cost;
+        return cost;
     };
 
-    if (!is_collision_free(start_key)) {
-        RCLCPP_ERROR(get_logger(), "Startposition ist blockiert");
-        return;
-    }
-    if (!is_collision_free(goal_key)) {
-        RCLCPP_ERROR(get_logger(), "Zielposition ist blockiert");
-        return;
-    }
 
     // Weighted A* heuristic: w > 1.0 biases toward goal (faster, suboptimal by factor w)
-    constexpr double w = 2.0;
+    constexpr double w = 2.5;
     auto heuristic = [](const octomap::OcTreeKey& a, const octomap::OcTreeKey& b) -> double {
         double dx = static_cast<int>(a[0]) - static_cast<int>(b[0]);
         double dy = static_cast<int>(a[1]) - static_cast<int>(b[1]);
         double dz = static_cast<int>(a[2]) - static_cast<int>(b[2]);
         return w * std::sqrt(dx*dx + dy*dy + dz*dz);
     };
-
-    // 6-connected neighbors (face-adjacent) for speed
-    static constexpr int dirs[6][3] = {
-        {1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}, {0,0,1}, {0,0,-1}
-    };
-
-    using KeyHash = octomap::OcTreeKey::KeyHash;
 
     struct AStarNode {
         octomap::OcTreeKey key;
@@ -212,24 +224,32 @@ void NavNode::AstarPlanner() {
 
         ++expanded;
 
-        for (const auto& d : dirs) {
-            octomap::OcTreeKey nbr_key(
-                current.key[0] + d[0],
-                current.key[1] + d[1],
-                current.key[2] + d[2]);
+        // 26-connected neighbors
+        for (int dx = -1; dx <= 1; ++dx) {
+            for (int dy = -1; dy <= 1; ++dy) {
+                for (int dz = -1; dz <= 1; ++dz) {
+                    if (dx == 0 && dy == 0 && dz == 0) continue;
 
-            if (!is_collision_free(nbr_key))
-                continue;
+                    octomap::OcTreeKey nbr_key(
+                        current.key[0] + dx,
+                        current.key[1] + dy,
+                        current.key[2] + dz);
 
-            double tentative_g = cur_g + 1.0;  // uniform cost for 6-connected
+                    double vc = voxel_cost(nbr_key);
+                    if (vc < 0) continue;  // Blockiert
 
-            auto it = g_score.find(nbr_key);
-            if (it != g_score.end() && tentative_g >= it->second)
-                continue;
+                    double move_dist = std::sqrt(double(dx*dx + dy*dy + dz*dz));
+                    double tentative_g = cur_g + move_dist + vc;
 
-            g_score[nbr_key] = tentative_g;
-            came_from[nbr_key] = current.key;
-            open.push({nbr_key, tentative_g + heuristic(nbr_key, goal_key)});
+                    auto it = g_score.find(nbr_key);
+                    if (it != g_score.end() && tentative_g >= it->second)
+                        continue;
+
+                    g_score[nbr_key] = tentative_g;
+                    came_from[nbr_key] = current.key;
+                    open.push({nbr_key, tentative_g + heuristic(nbr_key, goal_key)});
+                }
+            }
         }
     }
 
@@ -350,6 +370,17 @@ void NavNode::computeAndPublishEsdf() {
 
     const double cx = drone_pose_.pose.position.x;
     const double cy = drone_pose_.pose.position.y;
+
+    // ESDF aktualisieren bei Distanz >= 2.5m ODER neuer OctoMap
+    {
+        double dx = cx - esdf_center_x_;
+        double dy = cy - esdf_center_y_;
+        double dz = drone_pose_.pose.position.z - esdf_center_z_;
+        bool moved = std::sqrt(dx*dx + dy*dy + dz*dz) >= esdf_recompute_dist_;
+        if (esdf_initialized_ && !moved && !octomap_updated_)
+            return;
+        octomap_updated_ = false;
+    }
     const double cz = drone_pose_.pose.position.z;
 
     const int nx = static_cast<int>(esdf_size_x_ / esdf_res_);
@@ -362,23 +393,32 @@ void NavNode::computeAndPublishEsdf() {
     const double oz = cz - esdf_size_z_ / 2.0;
 
     constexpr double INF = 1e20;
-    std::vector<double> grid(nx * ny * nz, INF);
+    std::vector<double> grid(nx * ny * nz, 0.0);  // Default: Hindernis (unbekannt = gefährlich)
 
-    // Octomap → lokales Grid: besetzte Voxel markieren (Distanz = 0)
-    for (auto it = tree_->begin_leafs(), end = tree_->end_leafs(); it != end; ++it) {
-        if (!tree_->isNodeOccupied(*it)) continue;
-
-        double wx = it.getX(), wy = it.getY(), wz = it.getZ();
-        int ix = static_cast<int>((wx - ox) / esdf_res_);
-        int iy = static_cast<int>((wy - oy) / esdf_res_);
-        int iz = static_cast<int>((wz - oz) / esdf_res_);
-
-        if (ix >= 0 && ix < nx && iy >= 0 && iy < ny && iz >= 0 && iz < nz)
-            grid[(iz * ny + iy) * nx + ix] = 0.0;
+    // Octomap → lokales Grid: nur bekannt-freie Voxel als frei markieren
+    for (int iz = 0; iz < nz; ++iz) {
+        for (int iy = 0; iy < ny; ++iy) {
+            for (int ix = 0; ix < nx; ++ix) {
+                double wx = ox + (ix + 0.5) * esdf_res_;
+                double wy = oy + (iy + 0.5) * esdf_res_;
+                double wz = oz + (iz + 0.5) * esdf_res_;
+                octomap::OcTreeNode* node = tree_->search(wx, wy, wz);
+                if (node && !tree_->isNodeOccupied(node)) {
+                    grid[(iz * ny + iy) * nx + ix] = INF;  // Bekannt frei
+                }
+                // Sonst: unbekannt oder besetzt → bleibt 0 (Hindernis)
+            }
+        }
     }
 
     // 3D EDT berechnen (Ergebnis: quadrierte Distanzen in Voxel-Einheiten)
     edt3d(grid, nx, ny, nz);
+
+    // Zentrum merken
+    esdf_center_x_ = cx;
+    esdf_center_y_ = cy;
+    esdf_center_z_ = drone_pose_.pose.position.z;
+    esdf_initialized_ = true;
 
     // Squared voxel distances → metrische Distanzen
     // grid[i] enthält jetzt d²(voxel), also dist_m = sqrt(grid[i]) * esdf_res_
@@ -479,13 +519,17 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
         if (p.x >= ox && p.x < max_x &&
             p.y >= oy && p.y < max_y &&
             p.z >= oz && p.z < max_z) {
-            local_goal_idx = i;
-            break;
+            // Nur akzeptieren wenn der Punkt in bekannt-freiem Raum liegt
+            double dist = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz, p.x, p.y, p.z);
+            if (dist > hard_collision_dist_) {
+                local_goal_idx = i;
+                break;
+            }
         }
     }
 
     if (local_goal_idx < 0) {
-        RCLCPP_WARN(get_logger(), "Kein globaler Wegpunkt im lokalen Fenster");
+        RCLCPP_WARN(get_logger(), "Kein erreichbarer globaler Wegpunkt im lokalen Fenster");
         return;
     }
 

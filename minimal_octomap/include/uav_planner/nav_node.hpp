@@ -43,6 +43,7 @@ private:
     rclcpp::TimerBase::SharedPtr replan_timer_;
     static constexpr double goal_tolerance_ = 0.3;      // Ziel erreicht
     static constexpr double goal_change_thresh_ = 0.5;   // Neues Ziel muss so weit abweichen
+    static constexpr double unknown_penalty_weight_ = 0.3; // Kosten für unbekannte Voxel im globalen Planer
 
     // ESDF
     void computeAndPublishEsdf();
@@ -53,9 +54,16 @@ private:
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr esdf_slice_xy_pub_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr esdf_slice_xz_pub_;
 
+    double esdf_center_x_ = 0.0;
+    double esdf_center_y_ = 0.0;
+    double esdf_center_z_ = 0.0;
+    bool esdf_initialized_ = false;
+    bool octomap_updated_ = false;                         // Neue Karte seit letzter ESDF-Berechnung
+    static constexpr double esdf_recompute_dist_ = 2.5;   // Neuberechnung ab dieser Entfernung [m]
+
     static constexpr double esdf_res_ = 0.25;        // ESDF Voxelgröße [m]
-    static constexpr double esdf_size_x_ = 8.0;     // Feldgröße X [m]
-    static constexpr double esdf_size_y_ = 8.0;     // Feldgröße Y [m]
+    static constexpr double esdf_size_x_ = 20.0;     // Feldgröße X [m]
+    static constexpr double esdf_size_y_ = 20.0;     // Feldgröße Y [m]
     static constexpr double esdf_size_z_ = 3.0;     // Feldgröße Z [m]
     static constexpr double esdf_max_dist_ = 2.0;   // Max-Distanz für Costmap-Mapping [m]
 
@@ -75,12 +83,12 @@ private:
     nav_msgs::msg::Path last_global_path_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr local_path_pub_;
 
-    static constexpr double safety_dist_ = 0.7;            // Sicherheitsabstand [m]
-    static constexpr double obstacle_penalty_weight_ = 15.0;
-    static constexpr double hard_collision_dist_ = 0.15;    // Absoluter Mindestabstand [m]
-    static constexpr int smooth_iterations_ = 80;
-    static constexpr double smooth_weight_ = 0.35;          // Glättungsgewicht
-    static constexpr double obstacle_weight_ = 0.5;         // Hindernisabstoßungs-Gewicht
+    static constexpr double safety_dist_ = 1.5;             // Sicherheitsabstand [m]
+    static constexpr double obstacle_penalty_weight_ = 80.0;
+    static constexpr double hard_collision_dist_ = 0.6;    // Absoluter Mindestabstand [m]
+    static constexpr int smooth_iterations_ = 30;
+    static constexpr double smooth_weight_ = 0.3;           // Glättungsgewicht
+    static constexpr double obstacle_weight_ = 1.0;         // Hindernisabstoßungs-Gewicht
 };
 
 #endif  // UAV_PLANNER__NAV_NODE_HPP_

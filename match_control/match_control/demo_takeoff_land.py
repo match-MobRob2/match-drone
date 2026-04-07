@@ -12,8 +12,9 @@ class TakeoffLandNode(Node):
     def __init__(self) -> None:
         super().__init__('takeoff_land_node')
         self.local_pos_pub = self.create_publisher(
-            PoseStamped, '/mavros/setpoint_position/local', 10
+            PoseStamped, '/mavros/setpoint_raw/local', 10
         )
+
         self.arming_client = self.create_client(CommandBool, '/mavros/cmd/arming')
         self.set_mode_client = self.create_client(SetMode, '/mavros/set_mode')
         self.land_client = self.create_client(CommandTOL, '/mavros/cmd/land')

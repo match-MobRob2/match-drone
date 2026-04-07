@@ -61,7 +61,7 @@ def generate_launch_description():
 
     gz_sim_resource_path = f"{px4_gz_worlds}:{px4_gz_plugins}"
 
-    world = f"{match_models_path}/worlds/scale.sdf"
+    world = f"{match_models_path}/worlds/scale2.sdf"
 
     print(f"World: {world}")
 

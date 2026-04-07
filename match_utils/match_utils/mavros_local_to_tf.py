@@ -24,6 +24,8 @@ class LocalPoseToTF(Node):
 
     def cb_pose(self, msg: PoseStamped):
         t = TransformStamped()
+        # MAVROS sends wall-clock timestamps while the rest of the
+        # pipeline runs on sim_time → use the node clock (sim_time)
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = self.map_frame
         t.child_frame_id = self.base_link_frame

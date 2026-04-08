@@ -36,11 +36,11 @@ ROS2-based autonomous UAV simulation system integrating PX4 SITL, Gazebo Harmoni
 
 **Autonomous Labyrinth Flight**
 
-<video src="docs/video/Marvintutdinge.mp4" width="100%" controls muted></video>
+[![Autonomous Labyrinth Flight](https://img.youtube.com/vi/GqTsR1oweAE/0.jpg)](https://www.youtube.com/watch?v=GqTsR1oweAE)
 
-**Global Plannung and Local correction**
+**Global Planning and Local Correction**
 
-<video src="docs/video/Marvintutmehrdinge.mp4" width="100%" controls muted></video>
+[![Global Planning and Local Correction](https://img.youtube.com/vi/MZB8FT8vBoA/0.jpg)](https://www.youtube.com/watch?v=MZB8FT8vBoA)
 
 ## Package Structure
 

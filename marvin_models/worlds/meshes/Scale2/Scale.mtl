@@ -2,319 +2,461 @@
 # www.blender.org
 
 newmtl 191,191,191.001
-Ns 300.000031
-Ka 1.000000 1.000000 1.000000
 Kd 0.033868 0.028468 0.021578
 Ks 0.000000 0.000000 0.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 1
+Pr 0.452277
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl CarbonFiber
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 0.000000 0.000000 0.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
+Pr 0.500000
+Pm 1.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Halle
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl LandingFoam
-Ns 250.000000
-Ka 0.300000 0.300000 0.300000
 Kd 0.701961 0.701961 0.701961
 Ks 0.000000 0.000000 0.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
+Pr 0.500000
+Pm 0.300000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material
-Ns 16.114523
-Ka 1.000000 1.000000 1.000000
 Kd 0.049616 0.049616 0.049616
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.873057
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.001
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.800149 0.027311 0.004834
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.003
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.800197 0.480259 0.033271
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.004
-Ns 584.076111
-Ka 1.000000 1.000000 1.000000
 Kd 0.276086 0.275972 0.800086
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.235751
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.005
-Ns 436.421112
-Ka 0.663212 0.663212 0.663212
 Kd 0.052150 0.052150 0.052150
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 3
+Pr 0.339378
+Pm 0.663212
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.006
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.085027 0.085027 0.085027
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.007
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.416211 0.416211 0.416211
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.008
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.003231 0.003029 0.004591
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.009
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.083585 0.407629 0.044376
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.010
-Ns 753.208069
-Ka 0.398964 0.398964 0.398964
 Kd 0.416211 0.416211 0.416211
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 3
+Pr 0.132124
+Pm 0.398964
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.011
-Ns 735.328430
-Ka 0.341969 0.341969 0.341969
 Kd 0.214041 0.196451 0.800251
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 3
+Pr 0.142487
+Pm 0.341969
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.012
-Ns 0.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.786109 0.800331 0.027785
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 1.000000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.013
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.800071 0.027295 0.049341
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.014
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.000000 0.013902 0.800094
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Material.015
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.010009 0.800197 0.043861
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Pr 0.500000
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl Metal
-Ns 250.000000
-Ka 1.000000 1.000000 1.000000
 Kd 0.318547 0.318547 0.318547
 Ks 0.000000 0.000000 0.000000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
+Pr 0.500000
+Pm 1.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 
 newmtl WetFloorSign_01
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd WetFloorSign_01_diff_4k.jpg
-map_Ns WetFloorSign_01_roughness_4k.jpg
-map_refl WetFloorSign_01_metallic_4k.exr
+map_Pm WetFloorSign_01_metallic_4k.exr
+map_Pr WetFloorSign_01_roughness_4k.jpg
 map_Bump -bm 1.000000 WetFloorSign_01_nor_gl_4k.exr
 
 newmtl concrete_floor_worn_001
-Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Kd concrete_floor_worn_001_diff_4k.jpg
-map_Ns concrete_floor_worn_001_rough_4k.jpg
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Pr concrete_floor_worn_001_rough_4k.jpg
 map_Bump -bm 1.000000 concrete_floor_worn_001_nor_gl_4k.exr
 
 newmtl ladder_sectioned_01
-Ka 0.700000 0.700000 0.700000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 3
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd ladder_sectioned_01_diff_4k.jpg
-map_Ns ladder_sectioned_01_rough_4k.exr
-map_refl ladder_sectioned_01_metal_4k.exr
+map_Pm ladder_sectioned_01_metal_4k.exr
+map_Pr ladder_sectioned_01_rough_4k.exr
 map_Bump -bm 1.000000 ladder_sectioned_01_nor_gl_4k.exr
 
 newmtl modular_airduct_rectangular_01_parts01
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd modular_airduct_rectangular_01_parts01_diff_4k.png
-map_Ns modular_airduct_rectangular_01_parts01_rough_4k.png
-map_refl modular_airduct_rectangular_01_parts01_metal_4k.png
+map_Pm modular_airduct_rectangular_01_parts01_metal_4k.png
+map_Pr modular_airduct_rectangular_01_parts01_rough_4k.png
 map_Bump -bm 1.000000 modular_airduct_rectangular_01_parts01_nor_gl_4k.png
 
 newmtl modular_airduct_rectangular_01_parts02
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd modular_airduct_rectangular_01_parts02_diff_4k.png
-map_Ns modular_airduct_rectangular_01_parts02_rough_4k.png
-map_refl modular_airduct_rectangular_01_parts02_metal_4k.png
+map_Pm modular_airduct_rectangular_01_parts02_metal_4k.png
+map_Pr modular_airduct_rectangular_01_parts02_rough_4k.png
 map_Bump -bm 1.000000 modular_airduct_rectangular_01_parts02_nor_gl_4k.png
 
 newmtl modular_pipes_metal
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd modular_pipes_metal_diff_4k.png
-map_Ns modular_pipes_metal_rough_4k.png
-map_refl modular_pipes_metal_metal_4k.png
+map_Pm modular_pipes_metal_metal_4k.png
+map_Pr modular_pipes_metal_rough_4k.png
 map_Bump -bm 1.000000 modular_pipes_metal_nor_gl_4k.png
 
 newmtl modular_pipes_pvc
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.500000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd modular_pipes_pvc_diff_4k.png
-map_Ns modular_pipes_pvc_rough_4k.png
-map_refl modular_pipes_pvc_metal_4k.png
+map_Pm modular_pipes_pvc_metal_4k.png
+map_Pr modular_pipes_pvc_rough_4k.png
 map_Bump -bm 1.000000 modular_pipes_pvc_nor_gl_4k.png
 
 newmtl plastered_wall_04
-Ka 1.000000 1.000000 1.000000
 Kd 0.800000 0.800000 0.800000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
-map_Ns plastered_wall_04_rough_4k.exr
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
+map_Pr plastered_wall_04_rough_4k.exr
 map_Bump -bm 1.000000 plastered_wall_04_nor_gl_4k.exr
 
 newmtl plywood
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+Pm 0.000000
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd -s 2 2 2 plywood_diff_4k.jpg
-map_Ns -s 2 2 2 plywood_rough_4k.exr
+map_Pr -s 2 2 2 plywood_rough_4k.exr
 map_Bump -s 2 2 2 -bm 1.000000 plywood_nor_gl_4k.exr
 
 newmtl steel_frame_shelves_01
-Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
 Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 2
+Ps 0.000000
+Pc 0.000000
+Pcr 0.030000
+aniso 0.000000
+anisor 0.000000
 map_Kd steel_frame_shelves_01_diff_4k.jpg
-map_Ns steel_frame_shelves_01_rough_4k.exr
-map_refl steel_frame_shelves_01_metal_4k.exr
+map_Pm steel_frame_shelves_01_metal_4k.exr
+map_Pr steel_frame_shelves_01_rough_4k.exr
 map_Bump -bm 1.000000 steel_frame_shelves_01_nor_gl_4k.exr

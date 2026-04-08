@@ -29,7 +29,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument("spawn_x", default_value="-18.0", description="Spawn X."),
         DeclareLaunchArgument("spawn_y", default_value="0.0", description="Spawn Y."),
-        DeclareLaunchArgument("spawn_z", default_value="1.0", description="Spawn Z."),
+        DeclareLaunchArgument("spawn_z", default_value="2.0", description="Spawn Z."),
     ]
 
     world = LaunchConfiguration("world")

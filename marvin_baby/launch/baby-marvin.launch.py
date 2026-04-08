@@ -20,8 +20,8 @@ def generate_launch_description():
     pkg = FindPackageShare("marvin_baby")
     pkg_share_dir = get_package_share_directory("marvin_baby")
 
-    match_models_share = get_package_share_directory("match_models")
-    match_models_sdf_path = os.path.join(match_models_share, "sdf")
+    marvin_models_share = get_package_share_directory("marvin_models")
+    marvin_models_sdf_path = os.path.join(marvin_models_share, "sdf")
 
     # Workspace-Root: install/marvin_baby/share/marvin_baby → 4x dirname
     ws_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(pkg_share_dir))))
@@ -29,12 +29,12 @@ def generate_launch_description():
 
     gz_resource_path = SetEnvironmentVariable(
         name="GZ_SIM_RESOURCE_PATH",
-        value=os.path.dirname(pkg_share_dir) + ":" + match_models_sdf_path,
+        value=os.path.dirname(pkg_share_dir) + ":" + marvin_models_sdf_path,
     )
 
     gz_server_config_path = SetEnvironmentVariable(
         name="GZ_SIM_SERVER_CONFIG_PATH",
-        value=os.path.join(match_models_share, "config", "server.config"),
+        value=os.path.join(marvin_models_share, "config", "server.config"),
     )
 
     gz_plugin_path = SetEnvironmentVariable(

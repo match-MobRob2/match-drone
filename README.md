@@ -44,6 +44,13 @@ ROS2-based autonomous UAV simulation system integrating PX4 SITL, Gazebo Harmoni
 
 ## Package Structure
 
+## Technical Structure
+
+<p align="center">
+  <img src="docs/img/flowchart.png" width="100%" />
+</p>
+
+
 ```
 marvin_* (Core Packages)
 ├── marvin_control       Flight missions, state machines, services

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version='1.9'>
+
+  <model name='match_drohne_alles'>
+    <self_collide>false</self_collide>
+    <static>false</static>
+
+    <include merge='true'>
+      <uri>model://match_drohne</uri>
+    </include>
+
+    <include merge='true'>
+      <pose relative_to="base_link">0.1 0 0.07 0 0.52 0</pose>
+      <uri>model://mid_360</uri>
+    </include>
+
+    <joint name="realsense_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>realsense_link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint>
+
+    <joint name="mid_360_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint>
+
+    <include merge='true'>
+      <pose relative_to="base_link">0.1 0 -0.08 0 0.2 0</pose>
+      <child>realsense_link</child>
+      <uri>model://intel_realsense</uri>
+    </include>
+
+
+    <!-- <link name="top_lidar_link">
+      <pose relative_to="base_link">0 0 0.2 0 0 0</pose>
+      <inertial>
+        <mass>0.02</mass>
+        <inertia>
+          <ixx>5e-5</ixx>
+          <iyy>5e-5</iyy>
+          <izz>5e-5</izz>
+          <ixy>0</ixy>
+          <ixz>0</ixz>
+          <iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="top_lidar_visual">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <ambient>0.1 0.1 0.1 1</ambient>
+          <diffuse>0.2 0.2 0.2 1</diffuse>
+          <specular>0.05 0.05 0.05 1</specular>
+        </material>
+      </visual>
+      <collision name="top_lidar_collision">
+        <geometry>
+          <cylinder>
+            <radius>0.05</radius>
+            <length>0.06</length>
+          </cylinder>
+        </geometry>
+      </collision>
+
+      <sensor name='top_lidar' type='gpu_lidar'>
+        <pose>0 0 0 0 0 0</pose>
+        <topic>/match_drohne_alles/top_lidar/points</topic>
+        <update_rate>20</update_rate>
+        <ray>
+          <scan>
+            <horizontal>
+              <samples>720</samples>
+              <resolution>1</resolution>
+              <min_angle>-3.14159</min_angle>
+              <max_angle>3.14159</max_angle>
+            </horizontal>
+            <vertical>
+              <samples>16</samples>
+              <resolution>1</resolution>
+              <min_angle>-0.261799</min_angle>
+              <max_angle>0.261799</max_angle>
+            </vertical>
+          </scan>
+          <range>
+            <min>0.2</min>
+            <max>120.0</max>
+            <resolution>0.02</resolution>
+          </range>
+        </ray>
+        <always_on>true</always_on>
+        <visualize>true</visualize>
+      </sensor>
+    </link>
+
+    <joint name="top_lidar_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>top_lidar_link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint> -->
+
+
+
+     <!-- <frame name="top_lidar_frame" attached_to="top_lidar_link">
+      <pose>0 0 0 0 0 0</pose>
+    </frame>  -->
+
+  </model>
+</sdf>

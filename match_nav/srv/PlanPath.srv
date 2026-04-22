@@ -1,0 +1,20 @@
+# Plan Path Service - Global 3D Path Planning with OMPL
+
+# Start pose (usually current position)
+geometry_msgs/Pose start
+
+# Goal pose
+geometry_msgs/Pose goal
+
+# Maximum planning time (seconds)
+float32 planning_time
+
+---
+# Planned path
+nav_msgs/Path path
+
+# Success flag
+bool success
+
+# Error message (if not successful)
+string error_message

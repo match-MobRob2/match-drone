@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//dev/**)",
+      "Read(//dev/serial/by-id/**)",
+      "Bash(lsusb)",
+      "Bash(dmesg)",
+      "Bash(ls /dev/ttyUSB*)",
+      "Bash(lsmod)",
+      "Bash(ls -la /dev/ttyUSB* /dev/ttyACM*)",
+      "Bash(udevadm info:*)",
+      "Bash(ros2 node:*)",
+      "Bash(echo \"DOMAIN_ID=$ROS_DOMAIN_ID\")",
+      "Bash(echo \"LOCALHOST_ONLY=$ROS_LOCALHOST_ONLY\")",
+      "Bash(echo \"DISCOVERY_RANGE=$ROS_AUTOMATIC_DISCOVERY_RANGE\")",
+      "Bash(echo \"STATIC_PEERS=$ROS_STATIC_PEERS\")",
+      "Bash(ros2 topic:*)",
+      "Bash(ros2 daemon:*)",
+      "Bash(ldd /home/marvin-drone/match-drone/install/fast_lio/lib/fast_lio/fastlio_mapping)",
+      "Bash(echo \"RMW_IMPLEMENTATION=$RMW_IMPLEMENTATION\")",
+      "Bash(sudo ufw:*)",
+      "Bash(ip addr:*)"
+    ]
+  }
+}

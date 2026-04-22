@@ -1,0 +1,33 @@
+# Blender 5.0.1 MTL File: 'Scale.blend'
+# www.blender.org
+
+newmtl Halle
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Plane.006_Bake1_PBR_Diffuse.png
+
+newmtl Material.012
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.786109 0.800331 0.027785
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+
+newmtl plastered_wall_04
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Ns textures/plastered_wall_04_rough_4k.exr
+map_Bump -bm 1.000000 textures/plastered_wall_04_nor_gl_4k.exr

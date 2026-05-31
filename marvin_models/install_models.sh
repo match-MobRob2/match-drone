@@ -10,6 +10,7 @@ cat <<EOL >> ../PX4-Autopilot/ROMFS/px4fmu_common/init.d-posix/airframes/CMakeLi
     40013_gz_marvin_drohne_fr_camera
     40014_gz_marvin_drohne_alles
     40015_gz_marvin_drohne_nogps
+    40016_gz_fat_marvin
 )
 EOL
 

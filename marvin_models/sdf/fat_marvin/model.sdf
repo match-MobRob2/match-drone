@@ -1,0 +1,599 @@
+<?xml version="1.0" ?>
+<!--
+  Fat Marvin = T-Motor MX860 coaxial X8.
+  Frame: one link per Blender collection, rigidly tied to base_link via fixed
+  joints (gz-sim lumps these into base_link for dynamics).
+  Flight: 8 rotor links + revolute joints + MulticopterMotorModel plugins.
+  Sensors on base_link (IMU/baro/mag/navsat) mirror marvin_drohne for PX4 SITL.
+
+  Motor layout (coaxial X8, arms at 45/135/225/315 deg, r=0.43m, top z=+0.043,
+  bottom z=-0.043). Pairs per arm spin opposite directions so per-arm yaw
+  cancels in hover; motor indices 0-3 = top, 4-7 = bottom.
+
+  Units: m / kg / kg*m^2.  Total mass ~9.93 kg, aggregate COM ~ (0, 0.002, -0.061).
+-->
+<sdf version="1.9">
+  <model name="fat_marvin">
+    <!-- lift model so the skids (~z=-0.535 in model frame) sit on z=0 ground -->
+    <pose>0 0 0.54 0 0 0</pose>
+    <self_collide>false</self_collide>
+    <static>false</static>
+
+    <!-- base_link = Body collection (hub plates, standoffs, battery cage + battery) -->
+    <link name="base_link">
+      <inertial>
+        <pose>0 0 -0.052 0 0 0</pose>
+        <mass>7.0</mass>
+        <inertia>
+          <ixx>0.0429</ixx><iyy>0.0429</iyy><izz>0.0565</izz>
+          <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz>
+        </inertia>
+      </inertial>
+      <visual name="body_vis">
+        <pose>0 0 0 0 0 -1.5708</pose>
+        <geometry><mesh><uri>model://fat_marvin/meshes/Body.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="body_col">
+        <pose>0 0 -0.052 0 0 0</pose>
+        <geometry><box><size>0.22 0.22 0.16</size></box></geometry>
+      </collision>
+
+      <sensor name="air_pressure_sensor" type="air_pressure">
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <air_pressure>
+          <pressure>
+            <noise type="gaussian"><mean>0</mean><stddev>3</stddev></noise>
+          </pressure>
+        </air_pressure>
+      </sensor>
+      <sensor name="magnetometer_sensor" type="magnetometer">
+        <always_on>1</always_on>
+        <update_rate>100</update_rate>
+        <magnetometer>
+          <x><noise type="gaussian"><stddev>0.0001</stddev></noise></x>
+          <y><noise type="gaussian"><stddev>0.0001</stddev></noise></y>
+          <z><noise type="gaussian"><stddev>0.0001</stddev></noise></z>
+        </magnetometer>
+      </sensor>
+      <sensor name="imu_sensor" type="imu">
+        <always_on>1</always_on>
+        <update_rate>250</update_rate>
+        <imu>
+          <angular_velocity>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.0008726646</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.0008726646</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.0008726646</stddev></noise></z>
+          </angular_velocity>
+          <linear_acceleration>
+            <x><noise type="gaussian"><mean>0.0</mean><stddev>0.00637</stddev></noise></x>
+            <y><noise type="gaussian"><mean>0.0</mean><stddev>0.00637</stddev></noise></y>
+            <z><noise type="gaussian"><mean>0.0</mean><stddev>0.00686</stddev></noise></z>
+          </linear_acceleration>
+        </imu>
+      </sensor>
+      <sensor name="navsat_sensor" type="navsat">
+        <always_on>1</always_on>
+        <update_rate>30</update_rate>
+      </sensor>
+    </link>
+
+    <!-- ===== Arms (45 / 135 / 225 / 315 deg). Collision = slim cylinder along the arm ===== -->
+    <link name="arm_0">
+      <inertial>
+        <pose>0.191 0.192 0 0 0 0</pose>
+        <mass>0.45</mass>
+        <inertia><ixx>0.0039</ixx><iyy>0.0039</iyy><izz>0.0072</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="arm0_vis">
+        <geometry><mesh><uri>model://fat_marvin/meshes/Arm_0.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="arm0_col">
+        <pose>0.191 0.192 0 0 1.5708 0.7854</pose>
+        <geometry><cylinder><radius>0.02</radius><length>0.35</length></cylinder></geometry>
+      </collision>
+    </link>
+    <joint name="arm_0_fix" type="fixed"><parent>base_link</parent><child>arm_0</child></joint>
+
+    <link name="arm_1">
+      <inertial>
+        <pose>-0.191 0.192 0 0 0 0</pose>
+        <mass>0.45</mass>
+        <inertia><ixx>0.0039</ixx><iyy>0.0039</iyy><izz>0.0072</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="arm1_vis">
+        <geometry><mesh><uri>model://fat_marvin/meshes/Arm_1.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="arm1_col">
+        <pose>-0.191 0.192 0 0 1.5708 2.3562</pose>
+        <geometry><cylinder><radius>0.02</radius><length>0.35</length></cylinder></geometry>
+      </collision>
+    </link>
+    <joint name="arm_1_fix" type="fixed"><parent>base_link</parent><child>arm_1</child></joint>
+
+    <link name="arm_2">
+      <inertial>
+        <pose>-0.191 -0.192 0 0 0 0</pose>
+        <mass>0.45</mass>
+        <inertia><ixx>0.0039</ixx><iyy>0.0039</iyy><izz>0.0072</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="arm2_vis">
+        <geometry><mesh><uri>model://fat_marvin/meshes/Arm_2.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="arm2_col">
+        <pose>-0.191 -0.192 0 0 1.5708 3.9270</pose>
+        <geometry><cylinder><radius>0.02</radius><length>0.35</length></cylinder></geometry>
+      </collision>
+    </link>
+    <joint name="arm_2_fix" type="fixed"><parent>base_link</parent><child>arm_2</child></joint>
+
+    <link name="arm_3">
+      <inertial>
+        <pose>0.191 -0.192 0 0 0 0</pose>
+        <mass>0.45</mass>
+        <inertia><ixx>0.0039</ixx><iyy>0.0039</iyy><izz>0.0072</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="arm3_vis">
+        <geometry><mesh><uri>model://fat_marvin/meshes/Arm_3.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="arm3_col">
+        <pose>0.191 -0.192 0 0 1.5708 5.4978</pose>
+        <geometry><cylinder><radius>0.02</radius><length>0.35</length></cylinder></geometry>
+      </collision>
+    </link>
+    <joint name="arm_3_fix" type="fixed"><parent>base_link</parent><child>arm_3</child></joint>
+
+    <!-- ===== Landing gear ===== -->
+    <link name="beine">
+      <inertial>
+        <pose>0 0 -0.236 0 0 0</pose>
+        <mass>0.95</mass>
+        <inertia><ixx>0.0466</ixx><iyy>0.0451</iyy><izz>0.0598</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="beine_vis">
+        <pose>0 0 0 0 0 -1.5708</pose>
+        <geometry><mesh><uri>model://fat_marvin/meshes/Beine.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="skid_left">
+        <pose>0 -0.26 -0.52 0 0 0</pose>
+        <geometry><box><size>0.56 0.024 0.024</size></box></geometry>
+      </collision>
+      <collision name="skid_right">
+        <pose>0 0.26 -0.52 0 0 0</pose>
+        <geometry><box><size>0.56 0.024 0.024</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="beine_fix" type="fixed"><parent>base_link</parent><child>beine</child></joint>
+
+    <!-- ===== Avionik = FC (Cube Orange) + tilted mounting plate ===== -->
+    <link name="avionik">
+      <inertial>
+        <pose>0 0.102 -0.106 0 0 0</pose>
+        <mass>0.18</mass>
+        <inertia><ixx>0.0030</ixx><iyy>0.0023</iyy><izz>0.0011</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="avionik_vis">
+        <pose>0 0 0 0 0 -1.5708</pose>
+        <geometry><mesh><uri>model://fat_marvin/meshes/Avionik.glb</uri></mesh></geometry>
+      </visual>
+      <collision name="avionik_col">
+        <pose>0 0.102 -0.106 0 0 0</pose>
+        <geometry><box><size>0.12 0.24 0.10</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="avionik_fix" type="fixed"><parent>base_link</parent><child>avionik</child></joint>
+
+    <!-- ============================================================
+         Rotors. Coaxial X8: 4 arms x 2 rotors. r = 0.43 m, z = +/-0.043.
+         Top rotors = 0..3, bottom rotors = 4..7.
+         Per arm, top + bottom spin opposite => per-arm yaw cancels.
+
+         Visuals reuse the PX4 x500_base prop/bell meshes (1345_prop_*.stl,
+         5010Bell.dae), scaled ~1.4x so they look proportional to the bigger
+         MX860 frame. Bell pose z is flipped for the bottom rotors so the
+         motor bell points toward the arm in both layers.
+         ============================================================ -->
+
+    <!-- arm 0 (+X+Y, 45 deg)  top: CCW  bottom: CW -->
+    <link name="rotor_0">
+      <pose>0.304 0.304 0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_0_visual">
+        <pose>-0.0364 -0.2423 -0.0065 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_ccw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_0_visual_bell">
+        <pose>0 0 -0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_0_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_0_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_0</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <!-- arm 1 (-X+Y, 135 deg) top: CW   bottom: CCW -->
+    <link name="rotor_1">
+      <pose>-0.304 0.304 0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_1_visual">
+        <pose>-0.0364 -0.2423 -0.0065 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_cw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_1_visual_bell">
+        <pose>0 0 -0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_1_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_1_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_1</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <!-- arm 2 (-X-Y, 225 deg) top: CCW  bottom: CW -->
+    <link name="rotor_2">
+      <pose>-0.304 -0.304 0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_2_visual">
+        <pose>-0.0364 -0.2423 -0.0065 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_ccw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_2_visual_bell">
+        <pose>0 0 -0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_2_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_2_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_2</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <!-- arm 3 (+X-Y, 315 deg) top: CW   bottom: CCW -->
+    <link name="rotor_3">
+      <pose>0.304 -0.304 0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_3_visual">
+        <pose>-0.0364 -0.2423 -0.0065 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_cw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_3_visual_bell">
+        <pose>0 0 -0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_3_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_3_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_3</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <!-- bottom rotors -->
+    <link name="rotor_4">
+      <pose>0.304 0.304 -0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_4_visual">
+        <pose>-0.0364 -0.2423 -0.0035 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_cw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_4_visual_bell">
+        <pose>0 0 0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_4_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_4_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_4</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <link name="rotor_5">
+      <pose>-0.304 0.304 -0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_5_visual">
+        <pose>-0.0364 -0.2423 -0.0035 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_ccw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_5_visual_bell">
+        <pose>0 0 0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_5_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_5_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_5</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <link name="rotor_6">
+      <pose>-0.304 -0.304 -0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_6_visual">
+        <pose>-0.0364 -0.2423 -0.0035 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_cw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_6_visual_bell">
+        <pose>0 0 0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_6_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_6_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_6</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <link name="rotor_7">
+      <pose>0.304 -0.304 -0.043 0 0 0</pose>
+      <inertial>
+        <mass>0.05</mass>
+        <inertia><ixx>4.0e-5</ixx><iyy>4.0e-5</iyy><izz>7.0e-5</izz>
+                 <ixy>0</ixy><ixz>0</ixz><iyz>0</iyz></inertia>
+      </inertial>
+      <visual name="rotor_7_visual">
+        <pose>-0.0364 -0.2423 -0.0035 0 0 0</pose>
+        <geometry><mesh><scale>1.4 1.4 1.4</scale>
+          <uri>model://x500_base/meshes/1345_prop_ccw.stl</uri></mesh></geometry>
+        <material><script>
+          <name>Gazebo/DarkGrey</name>
+          <uri>file://media/materials/scripts/gazebo.material</uri>
+        </script></material>
+      </visual>
+      <visual name="rotor_7_visual_bell">
+        <pose>0 0 0.042 0 0 0</pose>
+        <geometry><mesh><scale>1.3 1.3 1.3</scale>
+          <uri>model://x500_base/meshes/5010Bell.dae</uri></mesh></geometry>
+      </visual>
+      <collision name="rotor_7_col">
+        <geometry><box><size>0.43 0.02 0.005</size></box></geometry>
+      </collision>
+    </link>
+    <joint name="rotor_7_joint" type="revolute">
+      <parent>base_link</parent><child>rotor_7</child>
+      <axis><xyz>0 0 1</xyz>
+        <limit><lower>-1e16</lower><upper>1e16</upper></limit>
+        <dynamics><spring_reference>0</spring_reference><spring_stiffness>0</spring_stiffness></dynamics>
+      </axis>
+    </joint>
+
+    <!-- ============================================================
+         Motor plugins. motorConstant / maxRotVelocity sized so that
+         max thrust per motor ~18 N => 8x ~145 N total => TWR ~1.5 for
+         9.93 kg. Tune if hover behavior is off.
+         ============================================================ -->
+
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_0_joint</jointName><linkName>rotor_0</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>0</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_1_joint</jointName><linkName>rotor_1</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>1</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_2_joint</jointName><linkName>rotor_2</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>2</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_3_joint</jointName><linkName>rotor_3</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>3</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_4_joint</jointName><linkName>rotor_4</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>4</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_5_joint</jointName><linkName>rotor_5</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>5</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_6_joint</jointName><linkName>rotor_6</linkName>
+      <turningDirection>cw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>6</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+    <plugin filename="gz-sim-multicopter-motor-model-system" name="gz::sim::systems::MulticopterMotorModel">
+      <jointName>rotor_7_joint</jointName><linkName>rotor_7</linkName>
+      <turningDirection>ccw</turningDirection>
+      <timeConstantUp>0.0125</timeConstantUp><timeConstantDown>0.025</timeConstantDown>
+      <maxRotVelocity>1100.0</maxRotVelocity>
+      <motorConstant>1.5e-05</motorConstant><momentConstant>0.016</momentConstant>
+      <commandSubTopic>command/motor_speed</commandSubTopic>
+      <motorNumber>7</motorNumber>
+      <rotorDragCoefficient>8.06428e-05</rotorDragCoefficient>
+      <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
+      <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
+      <motorType>velocity</motorType>
+    </plugin>
+
+    <!-- MID360 lidar on the front mounting plate, tilted 61 deg downward.
+         Blender plate position was (0, 0.2, -0.25); body visual was rotated
+         -90 deg CW around Z, so the plate is now physically at SDF
+         (0.2, 0, -0.25). Pitch = 1.0647 rad (= 61 deg) around Y. -->
+    <include merge='true'>
+      <pose relative_to="base_link">0.23 0 -0.25 0 1.0647 0</pose>
+      <uri>model://mid_360</uri>
+    </include>
+
+    <joint name="mid_360_joint" type="fixed">
+      <parent>base_link</parent>
+      <child>link</child>
+      <pose relative_to="base_link">0 0 0 0 0 0</pose>
+    </joint>
+
+  </model>
+</sdf>

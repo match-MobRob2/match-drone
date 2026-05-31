@@ -5,6 +5,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction, TimerAction
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, TextSubstitution
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 MATCH_MODELS_SHARE = get_package_share_directory("marvin_models")
@@ -17,8 +18,11 @@ def generate_launch_description():
     default_spawn_model = os.path.join(
         MATCH_MODELS_SHARE, "sdf", "marvin_drohne_alles", "model.sdf"
     )
+    # default_robot_description = os.path.join(
+    #     MATCH_MODELS_SHARE, "sdf", "marvin_drohne_alles", "marvin_drohne_alles.xacro"
+    # )
     default_robot_description = os.path.join(
-        MATCH_MODELS_SHARE, "sdf", "marvin_drohne_alles", "marvin_drohne_alles.xacro"
+        MATCH_MODELS_SHARE, "sdf", "fat_marvin", "fat_marvin.xacro"
     )
 
     declare_args = [
@@ -42,8 +46,8 @@ def generate_launch_description():
         cwd=default_px4_dir,
         output="screen",
         additional_env={
-            "PX4_SYS_AUTOSTART": "40014",
-            "PX4_SIM_MODEL": "marvin_drohne_alles",
+            "PX4_SYS_AUTOSTART": "40016",
+            "PX4_SIM_MODEL": "fat_marvin",
             "PX4_SIMULATOR": "GZ",
             "PX4_GZ_MODEL_POSE": [
                 spawn_x,
@@ -58,7 +62,6 @@ def generate_launch_description():
             "PX4_HOME_LAT": "52.42449457140792",
             "PX4_HOME_LON": "9.620245153463955",
             "PX4_HOME_ALT": "20.0",
-            "PX4_SIM_SPEED_FACTOR": "1",
         },
     )
 
@@ -112,12 +115,15 @@ def generate_launch_description():
 
     spawn_action = OpaqueFunction(function=make_spawn_timer)
 
-    robot_description_content = Command(
-        [
-            FindExecutable(name="xacro"),
-            " ",
-            default_robot_description,
-        ]
+    robot_description_content = ParameterValue(
+        Command(
+            [
+                FindExecutable(name="xacro"),
+                " ",
+                default_robot_description,
+            ]
+        ),
+        value_type=str,
     )
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
@@ -171,7 +177,7 @@ def generate_launch_description():
         "/marvin_drohne_alles/front_depth/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
         "/marvin_drohne_alles/front_depth/image/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
 
-        "/clock@rosgraph_msgs/msg/Clock@gz.msgs.Clock",
+        "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
 
         "/rgl_lidar/imu@sensor_msgs/msg/Imu@gz.msgs.IMU",
 

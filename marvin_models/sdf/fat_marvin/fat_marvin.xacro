@@ -1,0 +1,205 @@
+<?xml version="1.0"?>
+<!--
+  fat_marvin robot description (URDF/xacro) generated from model.sdf.
+
+  Mirrors the SDF kinematic tree for robot_state_publisher / RViz:
+  - base_link = Body collection (hub, battery cage, sensors live here in sim)
+  - 4 arms, landing gear (beine), avionik plate: fixed joints to base_link
+  - 8 coaxial rotors (0-3 top, 4-7 bottom): continuous joints about +Z
+  - mid_360 lidar on the tilted front plate
+
+  Note: the SDF model-level <pose>0 0 0.54</pose> is a spawn offset, not part
+  of the kinematic tree, so it is intentionally dropped here (base_link = root).
+
+  The rotor joints are 'continuous'. For a static TF tree (no spinning props)
+  either publish joint states (joint_state_publisher) or switch them to 'fixed'.
+-->
+<robot name="fat_marvin" xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:property name="mesh" value="package://marvin_models/sdf/fat_marvin/meshes"/>
+
+  <material name="dark_grey"><color rgba="0.3 0.3 0.3 1.0"/></material>
+  <material name="rotor_grey"><color rgba="0.15 0.15 0.15 1.0"/></material>
+
+  <!-- ===== base_link = Body collection ===== -->
+  <link name="base_link">
+    <inertial>
+      <origin xyz="0 0 -0.052" rpy="0 0 0"/>
+      <mass value="7.0"/>
+      <inertia ixx="0.0429" ixy="0.0" ixz="0.0" iyy="0.0429" iyz="0.0" izz="0.0565"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
+      <geometry>
+        <mesh filename="${mesh}/Body.glb"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 -0.052" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.22 0.22 0.16"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <!-- ===== Arms (45 / 135 / 225 / 315 deg) ===== -->
+  <xacro:macro name="arm" params="num ix iy">
+    <link name="arm_${num}">
+      <inertial>
+        <origin xyz="${ix} ${iy} 0" rpy="0 0 0"/>
+        <mass value="0.45"/>
+        <inertia ixx="0.0039" ixy="0.0" ixz="0.0" iyy="0.0039" iyz="0.0" izz="0.0072"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="${mesh}/Arm_${num}.glb"/>
+        </geometry>
+        <material name="dark_grey"/>
+      </visual>
+    </link>
+    <joint name="arm_${num}_fix" type="fixed">
+      <parent link="base_link"/>
+      <child link="arm_${num}"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:arm num="0" ix="0.191"  iy="0.192"/>
+  <xacro:arm num="1" ix="-0.191" iy="0.192"/>
+  <xacro:arm num="2" ix="-0.191" iy="-0.192"/>
+  <xacro:arm num="3" ix="0.191"  iy="-0.192"/>
+
+  <!-- ===== Landing gear ===== -->
+  <link name="beine">
+    <inertial>
+      <origin xyz="0 0 -0.236" rpy="0 0 0"/>
+      <mass value="0.95"/>
+      <inertia ixx="0.0466" ixy="0.0" ixz="0.0" iyy="0.0451" iyz="0.0" izz="0.0598"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
+      <geometry>
+        <mesh filename="${mesh}/Beine.glb"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 -0.26 -0.52" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.56 0.024 0.024"/>
+      </geometry>
+    </collision>
+    <collision>
+      <origin xyz="0 0.26 -0.52" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.56 0.024 0.024"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="beine_fix" type="fixed">
+    <parent link="base_link"/>
+    <child link="beine"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== Avionik = FC + tilted mounting plate ===== -->
+  <link name="avionik">
+    <inertial>
+      <origin xyz="0 0.102 -0.106" rpy="0 0 0"/>
+      <mass value="0.18"/>
+      <inertia ixx="0.0030" ixy="0.0" ixz="0.0" iyy="0.0023" iyz="0.0" izz="0.0011"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 -1.5708"/>
+      <geometry>
+        <mesh filename="${mesh}/Avionik.glb"/>
+      </geometry>
+      <material name="dark_grey"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0.102 -0.106" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.12 0.24 0.10"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="avionik_fix" type="fixed">
+    <parent link="base_link"/>
+    <child link="avionik"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ===== Rotors: coaxial X8, r=0.43m, top z=+0.043 / bottom z=-0.043 =====
+       Visual is a simple prop-disc box (the SDF reuses external x500 meshes
+       that are not part of this package). -->
+  <xacro:macro name="rotor" params="num x y z">
+    <link name="rotor_${num}">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.05"/>
+        <inertia ixx="4.0e-5" ixy="0.0" ixz="0.0" iyy="4.0e-5" iyz="0.0" izz="7.0e-5"/>
+      </inertial>
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.43 0.02 0.005"/>
+        </geometry>
+        <material name="rotor_grey"/>
+      </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.43 0.02 0.005"/>
+        </geometry>
+      </collision>
+    </link>
+    <joint name="rotor_${num}_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="rotor_${num}"/>
+      <origin xyz="${x} ${y} ${z}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+    </joint>
+  </xacro:macro>
+
+  <!-- top rotors -->
+  <xacro:rotor num="0" x="0.304"  y="0.304"  z="0.043"/>
+  <xacro:rotor num="1" x="-0.304" y="0.304"  z="0.043"/>
+  <xacro:rotor num="2" x="-0.304" y="-0.304" z="0.043"/>
+  <xacro:rotor num="3" x="0.304"  y="-0.304" z="0.043"/>
+  <!-- bottom rotors -->
+  <xacro:rotor num="4" x="0.304"  y="0.304"  z="-0.043"/>
+  <xacro:rotor num="5" x="-0.304" y="0.304"  z="-0.043"/>
+  <xacro:rotor num="6" x="-0.304" y="-0.304" z="-0.043"/>
+  <xacro:rotor num="7" x="0.304"  y="-0.304" z="-0.043"/>
+
+  <!-- ===== MID360 lidar on the tilted front plate (61 deg down) ===== -->
+  <link name="mid_360_link">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="0.02"/>
+      <inertia ixx="5e-05" ixy="0.0" ixz="0.0" iyy="5e-05" iyz="0.0" izz="5e-05"/>
+    </inertial>
+    <visual>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.05" length="0.06"/>
+      </geometry>
+      <material name="rotor_grey"/>
+    </visual>
+  </link>
+  <joint name="mid_360_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="mid_360_link"/>
+    <origin xyz="0.23 0 -0.25" rpy="0 1.0647 0"/>
+  </joint>
+
+  <link name="mid_360_frame"/>
+  <joint name="mid_360_frame_joint" type="fixed">
+    <parent link="mid_360_link"/>
+    <child link="mid_360_frame"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+</robot>

@@ -44,7 +44,7 @@ def generate_launch_description():
                     )
                 ),
                 launch_arguments={
-                    'config_file': '/home/luca/match_drone/src/FAST_LIO_ROS2/config/mid360.yaml'
+                    'config_file': '/home/luca/match_drone/src/FAST_LIO_ROS2/config/mid360_fatmarvin.yaml'
                 }.items()
             )
         ]
@@ -72,7 +72,5 @@ def generate_launch_description():
     return LaunchDescription([
         world_launch,
         drone_launch,
-        fastlio,
-        odom_to_drone,
-        rtabmap
+        odom_to_drone
     ])

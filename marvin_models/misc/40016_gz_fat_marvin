@@ -1,0 +1,109 @@
+#!/bin/sh
+#
+# @name Gazebo Fat Marvin (MX860 coaxial X8)
+#
+# @type Octorotor Coaxial
+#
+
+. ${R}etc/init.d/rc.mc_defaults
+
+PX4_SIMULATOR=${PX4_SIMULATOR:=gz}
+PX4_GZ_WORLD=${PX4_GZ_WORLD:=default}
+PX4_SIM_MODEL=${PX4_SIM_MODEL:=fat_marvin}
+
+param set-default SIM_GZ_EN 1
+
+param set-default CA_AIRFRAME 0
+param set-default CA_ROTOR_COUNT 8
+
+# Note: CA_ROTOR positions are in PX4 body FRD (Forward-Right-Down). Gazebo SDF
+# is FLU (Forward-Left-Up), so PY is the SDF Y NEGATED. PZ is left as the SDF
+# Z value (planar contribution to the mixer is unchanged, matches how
+# 40011_gz_marvin_drohne is wired).
+#
+# KM sign convention: + = CCW from above (matches gz turningDirection=ccw),
+# - = CW from above.
+
+# === Top layer (SDF z = +0.043, physically above the arm) ===
+# Arm 0  physically front-left  (SDF +X+Y, FRD +X-Y)  CCW
+param set-default CA_ROTOR0_PX  0.304
+param set-default CA_ROTOR0_PY -0.304
+param set-default CA_ROTOR0_PZ  0.043
+param set-default CA_ROTOR0_KM  0.05
+# Arm 1  physically rear-left   (SDF -X+Y, FRD -X-Y)  CW
+param set-default CA_ROTOR1_PX -0.304
+param set-default CA_ROTOR1_PY -0.304
+param set-default CA_ROTOR1_PZ  0.043
+param set-default CA_ROTOR1_KM -0.05
+# Arm 2  physically rear-right  (SDF -X-Y, FRD -X+Y)  CCW
+param set-default CA_ROTOR2_PX -0.304
+param set-default CA_ROTOR2_PY  0.304
+param set-default CA_ROTOR2_PZ  0.043
+param set-default CA_ROTOR2_KM  0.05
+# Arm 3  physically front-right (SDF +X-Y, FRD +X+Y)  CW
+param set-default CA_ROTOR3_PX  0.304
+param set-default CA_ROTOR3_PY  0.304
+param set-default CA_ROTOR3_PZ  0.043
+param set-default CA_ROTOR3_KM -0.05
+
+# === Bottom layer (SDF z = -0.043). Opposite direction to top on same arm ===
+# Arm 0 bottom  CW
+param set-default CA_ROTOR4_PX  0.304
+param set-default CA_ROTOR4_PY -0.304
+param set-default CA_ROTOR4_PZ -0.043
+param set-default CA_ROTOR4_KM -0.05
+# Arm 1 bottom  CCW
+param set-default CA_ROTOR5_PX -0.304
+param set-default CA_ROTOR5_PY -0.304
+param set-default CA_ROTOR5_PZ -0.043
+param set-default CA_ROTOR5_KM  0.05
+# Arm 2 bottom  CW
+param set-default CA_ROTOR6_PX -0.304
+param set-default CA_ROTOR6_PY  0.304
+param set-default CA_ROTOR6_PZ -0.043
+param set-default CA_ROTOR6_KM -0.05
+# Arm 3 bottom  CCW
+param set-default CA_ROTOR7_PX  0.304
+param set-default CA_ROTOR7_PY  0.304
+param set-default CA_ROTOR7_PZ -0.043
+param set-default CA_ROTOR7_KM  0.05
+
+param set-default SIM_GZ_EC_FUNC1 101
+param set-default SIM_GZ_EC_FUNC2 102
+param set-default SIM_GZ_EC_FUNC3 103
+param set-default SIM_GZ_EC_FUNC4 104
+param set-default SIM_GZ_EC_FUNC5 105
+param set-default SIM_GZ_EC_FUNC6 106
+param set-default SIM_GZ_EC_FUNC7 107
+param set-default SIM_GZ_EC_FUNC8 108
+
+param set-default SIM_GZ_EC_MIN1 150
+param set-default SIM_GZ_EC_MIN2 150
+param set-default SIM_GZ_EC_MIN3 150
+param set-default SIM_GZ_EC_MIN4 150
+param set-default SIM_GZ_EC_MIN5 150
+param set-default SIM_GZ_EC_MIN6 150
+param set-default SIM_GZ_EC_MIN7 150
+param set-default SIM_GZ_EC_MIN8 150
+
+param set-default SIM_GZ_EC_MAX1 1100
+param set-default SIM_GZ_EC_MAX2 1100
+param set-default SIM_GZ_EC_MAX3 1100
+param set-default SIM_GZ_EC_MAX4 1100
+param set-default SIM_GZ_EC_MAX5 1100
+param set-default SIM_GZ_EC_MAX6 1100
+param set-default SIM_GZ_EC_MAX7 1100
+param set-default SIM_GZ_EC_MAX8 1100
+
+# Hover thrust = (m*g) / (N * F_max) = (9.93*9.81) / (8 * 1.5e-5 * 1100^2) ~= 0.67
+param set-default MPC_THR_HOVER 0.67
+param set-default NAV_DLL_ACT 2
+
+param set-default EKF2_EV_CTRL 3
+param set-default EKF2_HGT_REF 3
+param set-default EKF2_BARO_CTRL 0
+param set-default EKF2_MAG_TYPE 0
+
+param set-default EKF2_GPS_CTRL 0
+param set-default GPS_1_CONFIG 0
+

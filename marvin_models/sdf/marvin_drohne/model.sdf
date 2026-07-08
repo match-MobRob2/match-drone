@@ -315,6 +315,15 @@
           </linear_acceleration>
         </imu>
       </sensor>
+      <!-- Zweite IMU fuer FAST-LIO: expliziter, welt-unabhaengiger Topic-Name.
+           PX4 haengt am Default-Topic von imu_sensor — den nicht anfassen.
+           ponytail: rauschfrei; IIM42653-Rauschmodell von oben kopieren,
+           wenn IMU-Realismus getestet werden soll. -->
+      <sensor name="fastlio_imu" type="imu">
+        <always_on>1</always_on>
+        <update_rate>200</update_rate>
+        <topic>marvin_drohne/imu</topic>
+      </sensor>
       <sensor name="navsat_sensor" type="navsat">
         <always_on>1</always_on>
         <update_rate>30</update_rate>

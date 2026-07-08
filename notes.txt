@@ -15,3 +15,8 @@ sudo apt install -y \
 - ros-humble-ros2-control           → controller_manager (Fehler: "package 'controller_manager' not found")
 - ros-humble-ros2-controllers       → joint_state_broadcaster und andere Standard-Controller
 - ros-humble-mecanum-drive-controller → Controller für Mecanum-Räder (cmd_vel → 4 Rad-Velocities)
+
+
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+python3 -m http.server 8080 --directory src/marvin_ui
+# → http://localhost:8080  (anderer Rechner: ?ws=ws://<sim-ip>:9090 anhängen)

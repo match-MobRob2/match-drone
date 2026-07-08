@@ -2,20 +2,37 @@
 """
 Pure Pursuit Path Tracker for UAV with MAVROS2
 
+Regelung: Position-Setpoints. Der Carrot wird kontinuierlich bei ca.
+lookahead_dist (~1 m) vor der Drohne entlang des Pfads interpoliert und als
+Positionsziel kommandiert — PX4s Positionsregler macht daraus die
+Geschwindigkeit (Fehler <= 1 m -> sanfte Fahrt, natuerliches Abbremsen am
+Ziel, wenn der Carrot auf dem letzten Pfadpunkt einrastet). Yaw zeigt
+tendenziell entlang des Pfads (Richtung Carrot). Position-Hold am Ziel und
+bei leerem Pfad.
+
+Frames: Der Pfad kommt im map-Frame und wird auch dort getrackt. Als
+Drohnenpose dient DIESELBE Quelle wie im Planner (TF map->base_link, Fallback
+MAVROS-Pose) — sonst vergleicht der Tracker zwei unabhaengige Schaetzungen
+derselben Position und jede Odometrie-Drift (FAST-LIO) wird zu Regelfehler.
+PX4 fliegt aber in seinem eigenen EKF-Frame: Der Carrot wird im letzten
+Schritt mit der momentanen Yaw-Differenz zwischen beiden Posen in den
+PX4-Frame gedreht und um die Drohne verschoben. Ist die TF stale
+(> tf_max_age), faellt der Tracker konsistent zum Planner auf die MAVROS-Pose
+zurueck (Offset 0).
+
 Subscribes:
-  - /local_planned_path     (nav_msgs/Path)          QoS: reliable
+  - /local_planned_path         (nav_msgs/Path)             QoS: reliable
   - /mavros/local_position/pose (geometry_msgs/PoseStamped) QoS: best_effort
 
 Publishes:
-  - /mavros/setpoint_raw/local (mavros_msgs/PositionTarget) @ 20 Hz
+  - /mavros/setpoint_raw/local  (mavros_msgs/PositionTarget) @ 20 Hz
+      immer: position + yaw
 
-Parameters (ros2 params):
-  - lookahead_dist   (float, default 1.2)   Lookahead radius in meters
-  - max_speed        (float, default 0.5)   Max speed m/s (straight path)
-  - min_speed        (float, default 0.15)  Min speed m/s (tight curves)
-  - curvature_window (int,   default 5)     Number of lookahead points for curvature calc
-  - goal_threshold   (float, default 0.25)  Distance to final goal to stop [m]
-  - publish_rate     (float, default 20.0)  Setpoint publish rate [Hz]
+Parameters:
+  - lookahead_dist   (float, 1.0)   Carrot-Abstand vor der Drohne [m]
+  - goal_threshold   (float, 0.15)  Distanz zum Ziel zum Stoppen [m]
+  - publish_rate     (float, 20.0)  Setpoint-Rate [Hz]
+  - tf_max_age       (float, 1.0)   Max. Alter der TF map->base_link [s]
 """
 
 import rclpy
@@ -25,10 +42,12 @@ from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPo
 import numpy as np
 import math
 
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Point, PoseStamped
 from nav_msgs.msg import Path
 from mavros_msgs.msg import PositionTarget
 from mavros_msgs.srv import SetMode
+
+import tf2_ros
 
 
 def quat_to_yaw(q) -> float:
@@ -38,16 +57,52 @@ def quat_to_yaw(q) -> float:
     return math.atan2(siny_cosp, cosy_cosp)
 
 
-def dist3d(a, b) -> float:
-    return math.sqrt(
-        (a.x - b.x) ** 2 +
-        (a.y - b.y) ** 2 +
-        (a.z - b.z) ** 2
-    )
+def pt(p) -> np.ndarray:
+    """geometry_msgs/Point -> np.ndarray(3)."""
+    return np.array([p.x, p.y, p.z])
 
 
-def dist2d(a, b) -> float:
-    return math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
+def rot_z(v, yaw: float) -> np.ndarray:
+    """Vektor um yaw um die z-Achse drehen."""
+    c, s = math.cos(yaw), math.sin(yaw)
+    return np.array([c * v[0] - s * v[1], s * v[0] + c * v[1], v[2]])
+
+
+# --- Pure Pursuit Geometrie (ROS-frei, damit testbar) --------------------------
+
+def carrot_on_path(pts, drone, lookahead: float):
+    """
+    Kontinuierlicher Carrot: Schnittpunkt der Kugel (Radius `lookahead` um die
+    Drohne) mit dem Polygonzug `pts`, am weitesten vorne. So wandert das Ziel
+    stetig mit, statt von Wegpunkt zu Wegpunkt zu springen.
+
+    pts:      Liste np.ndarray(3), ab dem naechstgelegenen Wegpunkt aufwaerts.
+    drone:    np.ndarray(3), aktuelle Drohnenposition.
+    Rueckgabe: np.ndarray(3). Liegt der ganze Restpfad innerhalb der Kugel
+              (nahe am Ziel), wird der letzte Punkt zurueckgegeben; ist die
+              Drohne weiter als `lookahead` vom Pfad abgekommen, der
+              naechstgelegene Punkt (zurueck auf den Pfad — NICHT das Pfadende,
+              ein Beeline dorthin wuerde jede Kurve um Hindernisse ignorieren).
+    """
+    L2 = lookahead * lookahead
+    for i in range(len(pts) - 1):
+        a = pts[i]
+        ab = pts[i + 1] - a
+        f = a - drone
+        A = float(ab.dot(ab))
+        if A < 1e-9:
+            continue
+        B = 2.0 * float(f.dot(ab))
+        C = float(f.dot(f)) - L2
+        disc = B * B - 4.0 * A * C
+        if disc < 0.0:
+            continue  # Segment schneidet die Kugel nicht
+        t = (-B + math.sqrt(disc)) / (2.0 * A)  # groessere Wurzel = weiter vorne
+        if 0.0 <= t <= 1.0:
+            return a + t * ab
+    if float(np.linalg.norm(pts[-1] - drone)) <= lookahead:
+        return pts[-1]
+    return min(pts, key=lambda p: float(np.linalg.norm(p - drone)))
 
 
 class PurePursuitTracker(Node):
@@ -56,23 +111,22 @@ class PurePursuitTracker(Node):
         super().__init__('pure_pursuit_tracker')
 
         # --- Parameters ---
-        self.declare_parameter('lookahead_dist',   1.5)
-        self.declare_parameter('max_speed',        0.4)
-        self.declare_parameter('min_speed',        0.05)
-        self.declare_parameter('curvature_window', 4)
-        self.declare_parameter('goal_threshold',   0.15)
-        self.declare_parameter('publish_rate',     20.0)
-        self.declare_parameter('yaw_tolerance',    10.0)  # degrees – align yaw before moving
+        self.declare_parameter('lookahead_dist', 1.0)
+        self.declare_parameter('goal_threshold', 0.15)
+        self.declare_parameter('publish_rate',   20.0)
+        self.declare_parameter('tf_max_age',     1.0)
 
-        self.lookahead_dist   = self.get_parameter('lookahead_dist').value
-        self.max_speed        = self.get_parameter('max_speed').value
-        self.min_speed        = self.get_parameter('min_speed').value
-        self.curvature_window = self.get_parameter('curvature_window').value
-        self.goal_threshold   = self.get_parameter('goal_threshold').value
-        self.yaw_tolerance    = math.radians(self.get_parameter('yaw_tolerance').value)
-        publish_rate          = self.get_parameter('publish_rate').value
+        self.lookahead_dist = self.get_parameter('lookahead_dist').value
+        self.goal_threshold = self.get_parameter('goal_threshold').value
+        self.publish_rate = self.get_parameter('publish_rate').value
+        self.tf_max_age = self.get_parameter('tf_max_age').value
 
-        # --- Service client ---
+        # TF map->base_link = Pose aus Sicht des Planners (nav_node nutzt
+        # dieselbe Quelle mit demselben Fallback)
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
+        # --- Service client (einmaliges OFFBOARD-Setzen) ---
         self.set_mode_client = self.create_client(SetMode, '/mavros/set_mode')
 
         # --- State ---
@@ -81,6 +135,8 @@ class PurePursuitTracker(Node):
         self.path_index: int = 0          # closest point on path (moves forward only)
         self.goal_reached: bool = False
         self.offboard_set: bool = False
+        self.hold_pos = None              # Haltepunkt im PX4-Frame (Ziel / Stopp-Signal)
+        self.hold_yaw = 0.0
 
         # --- QoS ---
         reliable_qos = QoSProfile(
@@ -98,34 +154,20 @@ class PurePursuitTracker(Node):
 
         # --- Subscribers ---
         self.path_sub = self.create_subscription(
-            Path,
-            '/local_planned_path',
-            self.path_callback,
-            reliable_qos,
-        )
+            Path, '/local_planned_path', self.path_callback, reliable_qos)
         self.pose_sub = self.create_subscription(
-            PoseStamped,
-            '/mavros/local_position/pose',
-            self.pose_callback,
-            best_effort_qos,
-        )
+            PoseStamped, '/mavros/local_position/pose',
+            self.pose_callback, best_effort_qos)
 
         # --- Publisher ---
         self.setpoint_pub = self.create_publisher(
-            PositionTarget,
-            '/mavros/setpoint_raw/local',
-            best_effort_qos,
-        )
+            PositionTarget, '/mavros/setpoint_raw/local', best_effort_qos)
 
         # --- Timer ---
-        self.timer = self.create_timer(1.0 / publish_rate, self.control_loop)
+        self.timer = self.create_timer(1.0 / self.publish_rate, self.control_loop)
 
-        self.get_logger().info('Pure Pursuit Tracker started.')
         self.get_logger().info(
-            f'  lookahead={self.lookahead_dist}m  '
-            f'max_speed={self.max_speed}m/s  '
-            f'min_speed={self.min_speed}m/s'
-        )
+            f'Pure Pursuit (position) gestartet. lookahead={self.lookahead_dist}m')
 
     # -----------------------------------------------------------------------
     # Callbacks
@@ -136,194 +178,143 @@ class PurePursuitTracker(Node):
 
     def path_callback(self, msg: Path):
         if len(msg.poses) == 0:
+            # Leerer Pfad = Stopp-Signal vom Planer: aktuelle Position halten
+            if self.path is not None and self.drone_pose is not None:
+                self.get_logger().warn('Leerer Pfad empfangen — halte Position')
+                self.hold_pos = self.drone_pose.pose.position
+                self.hold_yaw = quat_to_yaw(self.drone_pose.pose.orientation)
+            self.path = None
             return
 
-        # When a new path arrives, find the closest point to the drone
-        # to avoid jumping backwards on re-plans.
+        # Bei neuem Pfad naechstgelegenen Punkt suchen, damit wir nicht
+        # rueckwaerts auf alte Pfadsegmente springen.
+        new_index = 0
         if self.drone_pose is not None:
-            new_index = self._find_closest_index(msg)
-        else:
-            new_index = 0
+            pos_map, _, _ = self._pose_map()
+            new_index = self._find_closest_index(msg, pos_map)
 
         self.path = msg
         self.path_index = new_index
         self.goal_reached = False
+        self.hold_pos = None
 
         if not self.offboard_set:
             self._set_mode('OFFBOARD')
             self.offboard_set = True
 
-        self.get_logger().debug(
-            f'New path received: {len(msg.poses)} poses, starting at index {new_index}'
-        )
+    # -----------------------------------------------------------------------
+    # Pose / Frames
+    # -----------------------------------------------------------------------
+
+    def _pose_map(self):
+        """
+        Drohnenpose im map-Frame + Yaw-Offset zum PX4-Frame.
+
+        Rueckgabe (pos_map, yaw_map, dyaw): dyaw = Yaw(PX4) - Yaw(map) dreht
+        map-Vektoren in den PX4-Frame. Quelle ist die TF map->base_link
+        (Planner-Sicht, enthaelt Relokalisierung + FAST-LIO); ist sie stale
+        oder fehlt sie, MAVROS-Pose mit dyaw=0 — dann faellt auch der Planner
+        auf dieselbe Pose zurueck und beide bleiben konsistent.
+        """
+        mav = self.drone_pose.pose
+        try:
+            tf = self.tf_buffer.lookup_transform(
+                'map', 'base_link', rclpy.time.Time())
+            age = (self.get_clock().now()
+                   - rclpy.time.Time.from_msg(tf.header.stamp)).nanoseconds * 1e-9
+            if age <= self.tf_max_age:
+                t = tf.transform.translation
+                yaw_map = quat_to_yaw(tf.transform.rotation)
+                dyaw = quat_to_yaw(mav.orientation) - yaw_map
+                return np.array([t.x, t.y, t.z]), yaw_map, dyaw
+        except Exception:  # noqa: B902 — tf2 wirft diverse Exception-Typen
+            pass
+        return pt(mav.position), quat_to_yaw(mav.orientation), 0.0
+
+    def _map_to_px4(self, x_map, pos_map, dyaw: float) -> np.ndarray:
+        """Punkt aus map in den PX4-Frame: um die Drohne drehen + verschieben."""
+        return pt(self.drone_pose.pose.position) + rot_z(x_map - pos_map, dyaw)
 
     # -----------------------------------------------------------------------
     # Main control loop
     # -----------------------------------------------------------------------
 
     def control_loop(self):
-        if self.drone_pose is None or self.path is None or len(self.path.poses) == 0:
+        if self.drone_pose is None:
             return
 
-        drone_pos = self.drone_pose.pose.position
+        if self.path is None or len(self.path.poses) == 0:
+            if self.hold_pos is not None:
+                self._publish_position(self.hold_pos, self.hold_yaw)
+            return
+
+        if self.goal_reached:
+            self._publish_position(self.hold_pos, self.hold_yaw)
+            return
+
+        pos_map, yaw_map, dyaw = self._pose_map()
         poses = self.path.poses
-        goal_pos = poses[-1].pose.position
+        goal = pt(poses[-1].pose.position)
+        dist_goal = float(np.linalg.norm(goal - pos_map))
 
-        # Check if overall goal is reached
-        if dist3d(drone_pos, goal_pos) < self.goal_threshold:
-            if not self.goal_reached:
-                self.get_logger().info('Goal reached! Switching to POSCTL.')
-                self._set_mode('POSCTL')
-                self.offboard_set = False
-                self.goal_reached = True
-            self._publish_hold(goal_pos, quat_to_yaw(poses[-1].pose.orientation))
+        # Ziel erreicht → Zielpunkt einmalig in den PX4-Frame umrechnen und in
+        # OFFBOARD dort halten (kein Modus-Flip, kein Nachlaufen bei Drift)
+        if dist_goal < self.goal_threshold:
+            self.get_logger().info('Ziel erreicht — halte Position')
+            self.goal_reached = True
+            hp = self._map_to_px4(goal, pos_map, dyaw)
+            self.hold_pos = Point(x=float(hp[0]), y=float(hp[1]), z=float(hp[2]))
+            self.hold_yaw = quat_to_yaw(poses[-1].pose.orientation) + dyaw
+            self._publish_position(self.hold_pos, self.hold_yaw)
             return
 
-        # Advance closest index (never go backwards → avoids re-visiting old path segments)
-        self.path_index = self._advance_closest_index(poses, drone_pos)
+        # Naechstgelegenen Index vorruecken (nie rueckwaerts)
+        self.path_index = self._advance_closest_index(poses, pos_map)
+        pts_path = [pt(p.pose.position) for p in poses[self.path_index:]]
 
-        # Find lookahead point
-        lookahead_pose, lookahead_idx = self._find_lookahead(poses, drone_pos, self.path_index)
-        target_pos = lookahead_pose.pose.position
+        carrot = carrot_on_path(pts_path, pos_map, self.lookahead_dist)
+        vec = carrot - pos_map
+        norm = float(np.linalg.norm(vec))
 
-        # Compute desired yaw: face towards lookahead point (2D)
-        dx = target_pos.x - drone_pos.x
-        dy = target_pos.y - drone_pos.y
-        if abs(dx) > 1e-4 or abs(dy) > 1e-4:
-            desired_yaw = math.atan2(dy, dx)
+        # Weit vom Pfad abgekommen liegt der Carrot (naechster Pfadpunkt)
+        # > lookahead entfernt — Setpoint auf lookahead deckeln, sonst
+        # kommandiert der Positionsregler einen grossen Sprung mit voller
+        # PX4-Geschwindigkeit.
+        if norm > self.lookahead_dist:
+            carrot = pos_map + vec * (self.lookahead_dist / norm)
+
+        # Yaw tendenziell entlang des Pfads (Richtung Carrot, 2D). Bei ganz
+        # kurzem Vektor aktuellen Yaw halten (sonst atan2-Rauschen am Ziel).
+        if math.hypot(vec[0], vec[1]) > 0.3:
+            yaw = math.atan2(vec[1], vec[0]) + dyaw
         else:
-            desired_yaw = quat_to_yaw(self.drone_pose.pose.orientation)
+            yaw = quat_to_yaw(self.drone_pose.pose.orientation)
 
-        # Check yaw alignment before moving
-        current_yaw = quat_to_yaw(self.drone_pose.pose.orientation)
-        yaw_error = abs(math.atan2(math.sin(desired_yaw - current_yaw),
-                                   math.cos(desired_yaw - current_yaw)))
-
-        if yaw_error > self.yaw_tolerance:
-            # Not aligned yet → hold position, only rotate
-            self._publish_hold(drone_pos, desired_yaw)
-            self.get_logger().debug(
-                f'Aligning yaw: error={math.degrees(yaw_error):.1f}° > '
-                f'tolerance={math.degrees(self.yaw_tolerance):.1f}°'
-            )
-            return
-
-        # Compute speed based on path curvature ahead
-        speed = self._compute_speed(poses, lookahead_idx)
-
-        # Direction vector drone → lookahead (3D, normalized)
-        vec = np.array([
-            target_pos.x - drone_pos.x,
-            target_pos.y - drone_pos.y,
-            target_pos.z - drone_pos.z,
-        ])
-        norm = np.linalg.norm(vec)
-        if norm > 1e-4:
-            vec = vec / norm * speed
-        else:
-            vec = np.zeros(3)
-
-        self._publish_setpoint(target_pos, vec, desired_yaw)
+        sp = self._map_to_px4(carrot, pos_map, dyaw)
+        self._publish_position(
+            Point(x=float(sp[0]), y=float(sp[1]), z=float(sp[2])), yaw)
 
     # -----------------------------------------------------------------------
     # Pure Pursuit helpers
     # -----------------------------------------------------------------------
 
-    def _find_closest_index(self, path: Path) -> int:
-        """Find index of path point closest to drone (for re-plan handoff)."""
-        if self.drone_pose is None:
-            return 0
-        drone_pos = self.drone_pose.pose.position
-        min_d = float('inf')
-        best_i = 0
-        for i, pose in enumerate(path.poses):
-            d = dist3d(drone_pos, pose.pose.position)
-            if d < min_d:
-                min_d = d
-                best_i = i
-        return best_i
+    def _find_closest_index(self, path: Path, pos_map) -> int:
+        """Index des zur Drohne naechstgelegenen Pfadpunkts (fuer Replan-Uebergabe)."""
+        return min(range(len(path.poses)),
+                   key=lambda i: float(np.linalg.norm(
+                       pt(path.poses[i].pose.position) - pos_map)))
 
-    def _advance_closest_index(self, poses, drone_pos) -> int:
-        """
-        Advance path_index forward as long as the next point is closer.
-        This prevents the tracker from jumping backwards.
-        """
+    def _advance_closest_index(self, poses, pos_map) -> int:
+        """path_index vorruecken solange der naechste Punkt naeher ist (nie rueckwaerts)."""
         idx = self.path_index
         while idx < len(poses) - 1:
-            d_current = dist3d(drone_pos, poses[idx].pose.position)
-            d_next    = dist3d(drone_pos, poses[idx + 1].pose.position)
+            d_current = float(np.linalg.norm(pt(poses[idx].pose.position) - pos_map))
+            d_next = float(np.linalg.norm(pt(poses[idx + 1].pose.position) - pos_map))
             if d_next < d_current:
                 idx += 1
             else:
                 break
         return idx
-
-    def _find_lookahead(self, poses, drone_pos, start_idx: int):
-        """
-        Walk forward from start_idx until a point is beyond lookahead_dist.
-        Returns (pose, index) of the lookahead target.
-        """
-        for i in range(start_idx, len(poses)):
-            d = dist3d(drone_pos, poses[i].pose.position)
-            if d >= self.lookahead_dist:
-                return poses[i], i
-
-        # If no point is far enough → use last point
-        return poses[-1], len(poses) - 1
-
-    # -----------------------------------------------------------------------
-    # Speed scaling via curvature
-    # -----------------------------------------------------------------------
-
-    def _compute_speed(self, poses, lookahead_idx: int) -> float:
-        """
-        Estimate path curvature over the next `curvature_window` points
-        ahead of lookahead_idx and scale speed between min_speed and max_speed.
-
-        Curvature metric: mean angle change between consecutive segments.
-        0 rad  → straight → max_speed
-        π/2 rad → 90° turn → min_speed
-        """
-        end_idx = min(lookahead_idx + self.curvature_window, len(poses) - 1)
-        window = poses[lookahead_idx:end_idx + 1]
-
-        if len(window) < 3:
-            return self.max_speed
-
-        angle_sum = 0.0
-        count = 0
-
-        for i in range(1, len(window) - 1):
-            p0 = window[i - 1].pose.position
-            p1 = window[i].pose.position
-            p2 = window[i + 1].pose.position
-
-            v1 = np.array([p1.x - p0.x, p1.y - p0.y, p1.z - p0.z])
-            v2 = np.array([p2.x - p1.x, p2.y - p1.y, p2.z - p1.z])
-
-            n1 = np.linalg.norm(v1)
-            n2 = np.linalg.norm(v2)
-            if n1 < 1e-6 or n2 < 1e-6:
-                continue
-
-            cos_a = np.clip(np.dot(v1, v2) / (n1 * n2), -1.0, 1.0)
-            angle = math.acos(cos_a)   # 0 = straight, π = U-turn
-            angle_sum += angle
-            count += 1
-
-        if count == 0:
-            return self.max_speed
-
-        mean_angle = angle_sum / count  # radians
-
-        # Normalize: 0 → max_speed, π/2 (90°) or more → min_speed
-        t = min(mean_angle / (math.pi / 2), 1.0)
-        speed = (self.max_speed * (1.0 - t) + self.min_speed * t) * 0.7
-
-        self.get_logger().debug(
-            f'mean_angle={math.degrees(mean_angle):.1f}°  speed={speed:.2f} m/s'
-        )
-        return speed 
 
     # -----------------------------------------------------------------------
     # Flight mode
@@ -336,60 +327,24 @@ class PurePursuitTracker(Node):
         self.get_logger().info(f'Requested flight mode: {mode}')
 
     # -----------------------------------------------------------------------
-    # MAVROS publishers
+    # MAVROS publisher
     # -----------------------------------------------------------------------
 
-    def _publish_setpoint(self, target_pos, velocity_vec, yaw: float):
+    def _publish_position(self, pos, yaw: float):
+        """Position + Yaw (Velocity/Accel ignoriert) — Fahrt UND Halten."""
         msg = PositionTarget()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'map'
         msg.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-
-        # Ignore acceleration and yaw_rate; use position + velocity feedforward
         msg.type_mask = (
-            PositionTarget.IGNORE_AFX |
-            PositionTarget.IGNORE_AFY |
-            PositionTarget.IGNORE_AFZ |
+            PositionTarget.IGNORE_VX | PositionTarget.IGNORE_VY | PositionTarget.IGNORE_VZ |
+            PositionTarget.IGNORE_AFX | PositionTarget.IGNORE_AFY | PositionTarget.IGNORE_AFZ |
             PositionTarget.IGNORE_YAW_RATE
         )
-
-        msg.position.x = target_pos.x
-        msg.position.y = target_pos.y
-        msg.position.z = target_pos.z
-
-        msg.velocity.x = float(velocity_vec[0])
-        msg.velocity.y = float(velocity_vec[1])
-        msg.velocity.z = float(velocity_vec[2])
-
-        msg.yaw = yaw
-
-
-        self.setpoint_pub.publish(msg)
-
-    def _publish_hold(self, pos, yaw: float):
-        """Hold current goal position with zero velocity."""
-        msg = PositionTarget()
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'map'
-        msg.coordinate_frame = PositionTarget.FRAME_LOCAL_NED
-
-        msg.type_mask = (
-            PositionTarget.IGNORE_AFX |
-            PositionTarget.IGNORE_AFY |
-            PositionTarget.IGNORE_AFZ |
-            PositionTarget.IGNORE_YAW_RATE
-        )
-
         msg.position.x = pos.x
         msg.position.y = pos.y
         msg.position.z = pos.z
-
-        msg.velocity.x = 0.0
-        msg.velocity.y = 0.0
-        msg.velocity.z = 0.0
-
-        msg.yaw = yaw
-
+        msg.yaw = float(yaw)
         self.setpoint_pub.publish(msg)
 
 

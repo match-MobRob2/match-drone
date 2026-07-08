@@ -22,7 +22,7 @@ def generate_launch_description():
     #     MATCH_MODELS_SHARE, "sdf", "marvin_drohne_alles", "marvin_drohne_alles.xacro"
     # )
     default_robot_description = os.path.join(
-        MATCH_MODELS_SHARE, "sdf", "fat_marvin", "fat_marvin.xacro"
+        MATCH_MODELS_SHARE, "sdf", "marvin_drohne_alles", "marvin_drohne_alles.xacro"
     )
 
     declare_args = [
@@ -46,8 +46,8 @@ def generate_launch_description():
         cwd=default_px4_dir,
         output="screen",
         additional_env={
-            "PX4_SYS_AUTOSTART": "40016",
-            "PX4_SIM_MODEL": "fat_marvin",
+            "PX4_SYS_AUTOSTART": "40014",
+            "PX4_SIM_MODEL": "marvin_drohne_alles",
             "PX4_SIMULATOR": "GZ",
             "PX4_GZ_MODEL_POSE": [
                 spawn_x,
@@ -180,6 +180,10 @@ def generate_launch_description():
         "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
 
         "/rgl_lidar/imu@sensor_msgs/msg/Imu@gz.msgs.IMU",
+
+        # base_link-IMU (Sim-Zeitstempel, 200 Hz) fuer FAST-LIO — ersetzt die
+        # re-gestempelte MAVROS-IMU (Arrival-Time-Jitter drehte die Karte bei Yaw)
+        "/marvin_drohne/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
 
         "/rgl_lidar@sensor_msgs/msg/PointCloud2@gz.msgs.PointCloudPacked"
     ]

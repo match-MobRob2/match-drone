@@ -1,7 +1,10 @@
-// package.xml: <depend>octomap</depend> <depend>octomap_msgs</depend>
-// CMakeLists:  find_package(octomap REQUIRED) + find_package(octomap_msgs REQUIRED)
-//              target_link_libraries(... ${OCTOMAP_LIBRARIES})
-//              target_include_directories(... ${OCTOMAP_INCLUDE_DIRS})
+// Mapping + Planung in einem Node:
+//  - baut die OctoMap in-process aus Punktwolken (ersetzt octomap_server;
+//    kein Serialisieren/Deserialisieren der Karte mehr pro Update)
+//  - globaler A* auf grober OctoMap-Tiefe
+//  - lokales ESDF-Fenster (Felzenszwalb-EDT) + lokaler A* + Glättung
+//  - Kartenpersistenz: .bt laden beim Start (Parameter map_file),
+//    speichern via Service ~/save_map
 
 #include "uav_planner/nav_node.hpp"
 
@@ -11,11 +14,59 @@
 #include <algorithm>
 #include <limits>
 
+#include <tf2/exceptions.h>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/filter.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+namespace {
+double yawFromQuat(const geometry_msgs::msg::Quaternion& q) {
+    return std::atan2(2.0 * (q.w * q.z + q.x * q.y),
+                      1.0 - 2.0 * (q.y * q.y + q.z * q.z));
+}
+}
+
 NavNode::NavNode() : Node("nav_node") {
-    octomap_sub_ = create_subscription<octomap_msgs::msg::Octomap>(
-        "/octomap_binary",
-        rclcpp::QoS(1).reliable().transient_local(),
-        std::bind(&NavNode::octomapCallback, this, std::placeholders::_1));
+    const auto cloud_topic = declare_parameter("cloud_topic", std::string("/cloud_merged"));
+    sensor_frame_ = declare_parameter("sensor_frame", std::string(""));
+    map_file_ = declare_parameter("map_file", std::string(""));
+
+    tree_ = std::make_unique<octomap::OcTree>(map_res_);
+    if (!map_file_.empty()) {
+        if (tree_->readBinary(map_file_)) {
+            RCLCPP_INFO(get_logger(), "Karte geladen: %s (%zu Knoten)",
+                map_file_.c_str(), tree_->getNumLeafNodes());
+            octomap_updated_ = true;
+        } else {
+            RCLCPP_WARN(get_logger(), "Karte %s nicht lesbar — starte leer",
+                map_file_.c_str());
+        }
+    }
+    // Nach dem Laden setzen — readBinary überschreibt die Baum-Parameter
+    tree_->setProbHit(prob_hit_);
+    tree_->setProbMiss(prob_miss_);
+    tree_->setClampingThresMin(clamp_min_);
+    tree_->setClampingThresMax(clamp_max_);
+
+    tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
+    tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
+
+    cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
+        cloud_topic, rclcpp::SensorDataQoS().keep_last(2),
+        std::bind(&NavNode::cloudCallback, this, std::placeholders::_1));
+
+    octomap_pub_ = create_publisher<octomap_msgs::msg::Octomap>(
+        "/octomap_binary", rclcpp::QoS(1).transient_local());
+    octomap_points_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>(
+        "/octomap_points", rclcpp::QoS(1).transient_local());
+
+    save_map_srv_ = create_service<std_srvs::srv::Trigger>(
+        "~/save_map",
+        std::bind(&NavNode::saveMapCallback, this,
+                  std::placeholders::_1, std::placeholders::_2));
 
     drone_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
         "/mavros/local_position/pose",
@@ -38,35 +89,182 @@ NavNode::NavNode() : Node("nav_node") {
         std::bind(&NavNode::computeAndPublishEsdf, this));
 }
 
-void NavNode::octomapCallback(const octomap_msgs::msg::Octomap::SharedPtr msg) {
-    tree_.reset(dynamic_cast<octomap::OcTree*>(
-        octomap_msgs::msgToMap(*msg)));
+// --- Mapping ---
 
-    if (!tree_) {
-        RCLCPP_ERROR(get_logger(), "Deserialisierung fehlgeschlagen");
-    } else {
-        RCLCPP_INFO(get_logger(), "Karte empfangen — %zu Knoten",
-            tree_->getNumLeafNodes());
-        octomap_updated_ = true;
-        if (state_ == State::NAVIGATING)
-            AstarPlanner();
+void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+    // ponytail: feste Insertionsrate ~2.5 Hz — Raycasting ist der teure Teil,
+    // bei <1 m/s Fluggeschwindigkeit reicht das dicke
+    // Node-Uhr statt msg->header.stamp: manche Sensor-Bridges stempeln nicht
+    // sauber (bleibt 0 oder springt nicht) — Throttle würde dann nach dem
+    // ersten Insert für immer verriegeln
+    const rclcpp::Time stamp = now();
+    if (last_insert_time_.nanoseconds() > 0 &&
+        (stamp - last_insert_time_).seconds() < insert_min_period_)
+        return;
+
+    // Cloud nach map transformieren; Sensor-Ursprung fürs Raycasting separat,
+    // denn vor-registrierte Clouds (z.B. /cloud_registered) haben als Frame den
+    // Odom-Frame, nicht den Sensor
+    geometry_msgs::msg::TransformStamped cloud_tf, origin_tf;
+    const std::string origin_frame =
+        sensor_frame_.empty() ? msg->header.frame_id : sensor_frame_;
+    try {
+        // Neuestes TF statt exaktem Stempel (wie updateDronePoseFromTf) — sonst
+        // "extrapolation into the future" bei jeder TF-Publish-Lücke > Timeout
+        cloud_tf = tf_buffer_->lookupTransform("map", msg->header.frame_id,
+            tf2::TimePointZero);
+        origin_tf = tf_buffer_->lookupTransform("map", origin_frame,
+            tf2::TimePointZero);
+    } catch (const tf2::TransformException& e) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "Cloud verworfen — kein TF nach map: %s", e.what());
+        return;
+    }
+    last_insert_time_ = stamp;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(*msg, *cloud);
+    // Gazebos Depth-Kamera setzt is_dense=true, obwohl No-Return-Pixel als +Inf
+    // kodiert sind — bei is_dense=true überspringt PCL die NaN/Inf-Prüfung komplett
+    cloud->is_dense = false;
+    const size_t raw_size = cloud->size();
+    std::vector<int> keep;
+    pcl::removeNaNFromPointCloud(*cloud, *cloud, keep);
+    if (cloud->empty()) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "Cloud verworfen — nur NaN/Inf-Punkte (%zu roh)", raw_size);
+        return;
+    }
+
+    // Downsampling vor der Insertion — mehr als 1 Punkt pro halbem Voxel bringt nichts
+    pcl::VoxelGrid<pcl::PointXYZ> vg;
+    vg.setInputCloud(cloud);
+    const float leaf = static_cast<float>(map_res_ / 2.0);
+    vg.setLeafSize(leaf, leaf, leaf);
+    pcl::PointCloud<pcl::PointXYZ> ds;
+    vg.filter(ds);
+
+    const Eigen::Isometry3d T = tf2::transformToEigen(cloud_tf);
+    octomap::Pointcloud oc;
+    oc.reserve(ds.size());
+    for (const auto& p : ds.points) {
+        const Eigen::Vector3d w = T * Eigen::Vector3d(p.x, p.y, p.z);
+        if (w.z() < cloud_z_min_ || w.z() > cloud_z_max_) continue;
+        oc.push_back(w.x(), w.y(), w.z());
+    }
+    if (oc.size() == 0) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
+            "Cloud verworfen — alle %zu Punkte außerhalb z=[%.1f, %.1f]",
+            ds.size(), cloud_z_min_, cloud_z_max_);
+        return;
+    }
+
+    const octomap::point3d origin(
+        origin_tf.transform.translation.x,
+        origin_tf.transform.translation.y,
+        origin_tf.transform.translation.z);
+    tree_->insertPointCloud(oc, origin, max_range_, false, true);
+    octomap_updated_ = true;
+
+    if (++inserts_since_publish_ >= publish_every_n_inserts_) {
+        inserts_since_publish_ = 0;
+        publishOctomap();
     }
 }
 
+void NavNode::publishOctomap() {
+    octomap_msgs::msg::Octomap msg;
+    if (!octomap_msgs::binaryMapToMsg(*tree_, msg)) return;
+    msg.header.frame_id = "map";
+    msg.header.stamp = now();
+    octomap_pub_->publish(msg);
+
+    // Besetzte Voxel als PointCloud2 — RViz kann das ohne octomap_rviz_plugins
+    pcl::PointCloud<pcl::PointXYZ> cells;
+    for (auto it = tree_->begin_leafs(), end = tree_->end_leafs(); it != end; ++it) {
+        if (!tree_->isNodeOccupied(*it)) continue;
+        const auto c = it.getCoordinate();
+        cells.emplace_back(c.x(), c.y(), c.z());
+    }
+    sensor_msgs::msg::PointCloud2 pc;
+    pcl::toROSMsg(cells, pc);
+    pc.header = msg.header;
+    octomap_points_pub_->publish(pc);
+}
+
+void NavNode::saveMapCallback(
+    const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
+    std::shared_ptr<std_srvs::srv::Trigger::Response> res) {
+    (void)req;
+    if (map_file_.empty()) {
+        res->success = false;
+        res->message = "Parameter 'map_file' nicht gesetzt";
+        return;
+    }
+    if (!tree_ || tree_->size() == 0) {
+        res->success = false;
+        res->message = "Keine Karte vorhanden";
+        return;
+    }
+    res->success = tree_->writeBinary(map_file_);
+    res->message = (res->success ? "Gespeichert: " : "Schreiben fehlgeschlagen: ") + map_file_;
+    RCLCPP_INFO(get_logger(), "%s", res->message.c_str());
+}
+
+// --- Pose / Ziel ---
+
 void NavNode::dronePoseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
     drone_pose_ = *msg;
+}
+
+bool NavNode::updateDronePoseFromTf() {
+    try {
+        auto tf = tf_buffer_->lookupTransform("map", "base_link", tf2::TimePointZero);
+        // Stale TF (z.B. FAST-LIO tot, letzter Wert eingefroren) nicht als
+        // Pose verwenden — sonst plant der Planer von einer Geisterposition.
+        // Pursuit hat dieselbe Prüfung, damit beide konsistent zurückfallen.
+        if ((now() - rclcpp::Time(tf.header.stamp)).seconds() > tf_pose_max_age_)
+            return false;
+        drone_pose_.header.stamp = tf.header.stamp;
+        drone_pose_.header.frame_id = "map";
+        drone_pose_.pose.position.x = tf.transform.translation.x;
+        drone_pose_.pose.position.y = tf.transform.translation.y;
+        drone_pose_.pose.position.z = tf.transform.translation.z;
+        drone_pose_.pose.orientation = tf.transform.rotation;
+        return true;
+    } catch (const tf2::TransformException&) {
+        return false;  // Fallback: letzte Topic-Pose bleibt in drone_pose_
+    }
 }
 
 bool NavNode::isGoalDifferent(const geometry_msgs::msg::PoseStamped& new_goal) const {
     double dx = new_goal.pose.position.x - goal_pose_.pose.position.x;
     double dy = new_goal.pose.position.y - goal_pose_.pose.position.y;
     double dz = new_goal.pose.position.z - goal_pose_.pose.position.z;
-    return std::sqrt(dx*dx + dy*dy + dz*dz) > goal_change_thresh_;
+    if (std::sqrt(dx*dx + dy*dy + dz*dz) > goal_change_thresh_)
+        return true;
+    // Auch eine reine Yaw-Änderung zählt als neues Ziel
+    double dyaw = yawFromQuat(new_goal.pose.orientation)
+                - yawFromQuat(goal_pose_.pose.orientation);
+    dyaw = std::atan2(std::sin(dyaw), std::cos(dyaw));
+    return std::abs(dyaw) > goal_yaw_thresh_;
 }
 
 void NavNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-    RCLCPP_INFO(get_logger(), "Zielpose empfangen: (%.2f, %.2f, %.2f)",
-        msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+    if (!msg->header.frame_id.empty() && msg->header.frame_id != "map") {
+        RCLCPP_WARN(get_logger(),
+            "Zielpose in Frame '%s' statt 'map' — wird unveraendert uebernommen",
+            msg->header.frame_id.c_str());
+    }
+
+    // Ungültige (Null-)Quaternion → Identität, sonst ist der Ziel-Yaw undefiniert
+    auto& q = msg->pose.orientation;
+    if (q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w < 1e-6)
+        q.w = 1.0;
+
+    RCLCPP_INFO(get_logger(), "Zielpose empfangen: (%.2f, %.2f, %.2f, Yaw %.1f°)",
+        msg->pose.position.x, msg->pose.position.y, msg->pose.position.z,
+        yawFromQuat(q) * 180.0 / M_PI);
 
     // Neues Ziel nur akzeptieren wenn es sich vom aktuellen unterscheidet
     if (state_ == State::NAVIGATING && !isGoalDifferent(*msg)) {
@@ -76,9 +274,10 @@ void NavNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
 
     goal_pose_ = *msg;
     state_ = State::NAVIGATING;
+    consecutive_failures_ = 0;
     RCLCPP_INFO(get_logger(), "State -> NAVIGATING");
 
-    // Sofort planen, dann Timer starten für Replan jede Sekunde
+    // Sofort planen, dann Timer starten für Replan alle 2 s
     AstarPlanner();
 
     if (!replan_timer_) {
@@ -93,6 +292,7 @@ void NavNode::replanTimerCallback() {
         return;
     }
 
+    updateDronePoseFromTf();
     double dist = distanceToGoal();
     if (dist < goal_tolerance_) {
         RCLCPP_INFO(get_logger(), "Ziel erreicht (%.2f m) — State -> IDLE", dist);
@@ -104,8 +304,55 @@ void NavNode::replanTimerCallback() {
         return;
     }
 
-    RCLCPP_INFO(get_logger(), "Entfernung zum Ziel: %.2f m — Replan", dist);
+    // Sticky: committete Route halten solange sie frei ist — verhindert das
+    // Hin-und-Her zwischen gleichwertigen Umwegen (links/rechts um eine Saeule).
+    // Frisch aufgetauchte Hindernisse triggern den Replan bereits ueber
+    // validateGlobalPath(); hier nur bei blockierter/leerer Route neu planen.
+    if (globalPathClear()) {
+        RCLCPP_DEBUG(get_logger(), "Globaler Pfad frei — committed, kein Replan (%.2f m)", dist);
+        return;
+    }
+    RCLCPP_INFO(get_logger(), "Globaler Pfad blockiert/leer — Replan (%.2f m)", dist);
     AstarPlanner();
+}
+
+// Prueft die verbleibende committete Route gegen die aktuelle OctoMap
+// (Occupancy + Inflation wie der Planer). Frei → Route halten statt neu zu planen.
+bool NavNode::globalPathClear() {
+    if (!tree_ || last_global_path_.poses.empty()) return false;
+
+    const unsigned int depth = tree_->getTreeDepth() - 1;
+    const int stride = 1 << (tree_->getTreeDepth() - depth);
+    constexpr int inflate_r = 1;
+
+    // Nur den Rest ab dem naechstgelegenen Wegpunkt pruefen
+    const auto& poses = last_global_path_.poses;
+    size_t nearest = 0;
+    double best = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < poses.size(); ++i) {
+        const auto& p = poses[i].pose.position;
+        double dx = p.x - drone_pose_.pose.position.x;
+        double dy = p.y - drone_pose_.pose.position.y;
+        double dz = p.z - drone_pose_.pose.position.z;
+        double d = dx*dx + dy*dy + dz*dz;
+        if (d < best) { best = d; nearest = i; }
+    }
+
+    for (size_t i = nearest; i < poses.size(); ++i) {
+        const auto& p = poses[i].pose.position;
+        octomap::OcTreeKey k;
+        if (!tree_->coordToKeyChecked(p.x, p.y, p.z, depth, k)) continue;
+        for (int dx = -inflate_r; dx <= inflate_r; ++dx)
+            for (int dy = -inflate_r; dy <= inflate_r; ++dy)
+                for (int dz = -inflate_r; dz <= inflate_r; ++dz) {
+                    octomap::OcTreeKey nk(k[0] + dx * stride,
+                                          k[1] + dy * stride,
+                                          k[2] + dz * stride);
+                    octomap::OcTreeNode* n = tree_->search(nk, depth);
+                    if (n && tree_->isNodeOccupied(n)) return false;  // blockiert
+                }
+    }
+    return true;
 }
 
 double NavNode::distanceToGoal() {
@@ -119,19 +366,50 @@ double NavNode::distanceToGoal() {
     return std::sqrt(dx*dx + dy*dy + dz*dz);
 }
 
-void NavNode::AstarPlanner() {
-    RCLCPP_INFO(get_logger(), "A*-Planer aufgerufen");
+// --- Recovery ---
 
-    if (!tree_) {
+void NavNode::planFailed(const char* what) {
+    if (state_ != State::NAVIGATING) return;
+    ++consecutive_failures_;
+    if (consecutive_failures_ < max_failures_) return;
+
+    RCLCPP_ERROR(get_logger(),
+        "Planung %d-mal in Folge fehlgeschlagen (zuletzt: %s) — Abbruch, Halte-Signal",
+        consecutive_failures_, what);
+    state_ = State::IDLE;
+    consecutive_failures_ = 0;
+    if (replan_timer_) {
+        replan_timer_->cancel();
+        replan_timer_.reset();
+    }
+    // Leerer Pfad = Stopp-Signal: Pursuit hält die aktuelle Position
+    nav_msgs::msg::Path empty;
+    empty.header.stamp = now();
+    empty.header.frame_id = "map";
+    local_path_pub_->publish(empty);
+}
+
+// --- Globaler Planer ---
+
+void NavNode::AstarPlanner() {
+    if (!tree_ || tree_->size() == 0) {
         RCLCPP_WARN(get_logger(), "Keine OctoMap vorhanden");
+        planFailed("keine Karte");
+        return;
+    }
+    updateDronePoseFromTf();
+    if (drone_pose_.header.stamp.sec == 0) {
+        RCLCPP_WARN(get_logger(), "Noch keine Drohnenpose empfangen — Planung uebersprungen");
+        planFailed("keine Pose");
         return;
     }
 
-    const double res = tree_->getResolution();
     const unsigned int search_depth = tree_->getTreeDepth() - 1;  // Tiefe 15 → 0.6m Voxel
     const double step_size = tree_->getNodeSize(search_depth);
-
-    RCLCPP_INFO(get_logger(), "Planung auf Tiefe %u (Voxel: %.2f m)", search_depth, step_size);
+    // Keys liegen immer in max-Tiefen-Auflösung: ein Voxel auf search_depth
+    // entspricht 'stride' Key-Einheiten. Nachbarn/Inflation müssen damit skalieren,
+    // sonst bleiben Keys unausgerichtet und der Goal-Vergleich schlägt fehl.
+    const int stride = 1 << (tree_->getTreeDepth() - search_depth);
 
     // Convert start/goal to OcTreeKeys at coarser depth
     octomap::OcTreeKey start_key, goal_key;
@@ -144,12 +422,13 @@ void NavNode::AstarPlanner() {
             goal_pose_.pose.position.y,
             goal_pose_.pose.position.z, search_depth, goal_key)) {
         RCLCPP_ERROR(get_logger(), "Start oder Ziel liegt außerhalb der Karte");
+        planFailed("Start/Ziel ausserhalb der Karte");
         return;
     }
 
     // Collision-Check (Inflation) + Unknown-Penalty (nur Zentral-Voxel)
     // Rückgabe: Zusatzkosten für Voxel, < 0 = blockiert
-    constexpr int inflate_r = 2;
+    constexpr int inflate_r = 1;  // in Voxeln dieser Tiefe (≈0.6 m Abstand)
     using KeyHash = octomap::OcTreeKey::KeyHash;
     std::unordered_map<octomap::OcTreeKey, double, KeyHash> cost_cache;
 
@@ -161,7 +440,9 @@ void NavNode::AstarPlanner() {
         for (int dx = -inflate_r; dx <= inflate_r; ++dx) {
             for (int dy = -inflate_r; dy <= inflate_r; ++dy) {
                 for (int dz = -inflate_r; dz <= inflate_r; ++dz) {
-                    octomap::OcTreeKey nk(k[0] + dx, k[1] + dy, k[2] + dz);
+                    octomap::OcTreeKey nk(k[0] + dx * stride,
+                                          k[1] + dy * stride,
+                                          k[2] + dz * stride);
                     octomap::OcTreeNode* node = tree_->search(nk, search_depth);
                     if (node && tree_->isNodeOccupied(node)) {
                         cost_cache[k] = -1.0;
@@ -180,6 +461,37 @@ void NavNode::AstarPlanner() {
         return cost;
     };
 
+    // Start/Ziel in blockiertem Voxel (Drohne oder Ziel nahe Wand) → sonst
+    // scheitert jede Planung. Nächstes freies Voxel in expandierenden Schalen suchen.
+    auto nearestFree = [&](octomap::OcTreeKey& k, const char* name) -> bool {
+        if (voxel_cost(k) >= 0.0) return true;
+        for (int r = 1; r <= 2; ++r) {
+            for (int dx = -r; dx <= r; ++dx) {
+                for (int dy = -r; dy <= r; ++dy) {
+                    for (int dz = -r; dz <= r; ++dz) {
+                        if (std::max({std::abs(dx), std::abs(dy), std::abs(dz)}) != r)
+                            continue;  // nur Schalen-Rand
+                        octomap::OcTreeKey nk(k[0] + dx * stride,
+                                              k[1] + dy * stride,
+                                              k[2] + dz * stride);
+                        if (voxel_cost(nk) >= 0.0) {
+                            RCLCPP_WARN(get_logger(),
+                                "%s blockiert — auf freies Nachbarvoxel verschoben", name);
+                            k = nk;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        RCLCPP_ERROR(get_logger(), "%s blockiert — kein freies Voxel in der Naehe", name);
+        return false;
+    };
+
+    if (!nearestFree(start_key, "Start") || !nearestFree(goal_key, "Ziel")) {
+        planFailed("Start/Ziel blockiert");
+        return;
+    }
 
     // Weighted A* heuristic: w > 1.0 biases toward goal (faster, suboptimal by factor w)
     constexpr double w = 2.5;
@@ -231,9 +543,9 @@ void NavNode::AstarPlanner() {
                     if (dx == 0 && dy == 0 && dz == 0) continue;
 
                     octomap::OcTreeKey nbr_key(
-                        current.key[0] + dx,
-                        current.key[1] + dy,
-                        current.key[2] + dz);
+                        current.key[0] + dx * stride,
+                        current.key[1] + dy * stride,
+                        current.key[2] + dz * stride);
 
                     double vc = voxel_cost(nbr_key);
                     if (vc < 0) continue;  // Blockiert
@@ -255,6 +567,7 @@ void NavNode::AstarPlanner() {
 
     if (!found) {
         RCLCPP_ERROR(get_logger(), "Kein Pfad gefunden (%zu Knoten expandiert)", expanded);
+        planFailed("global kein Pfad");
         return;
     }
 
@@ -283,6 +596,10 @@ void NavNode::AstarPlanner() {
         ps.pose.orientation.w = 1.0;
         path_msg.poses.push_back(ps);
     }
+
+    // Ziel-Yaw an den letzten Wegpunkt hängen — Pursuit hält beim Erreichen
+    // die Orientierung des letzten Pfadpunkts
+    path_msg.poses.back().pose.orientation = goal_pose_.pose.orientation;
 
     last_global_path_ = path_msg;
     path_pub_->publish(path_msg);
@@ -366,64 +683,96 @@ void NavNode::edt3d(std::vector<double>& grid, int nx, int ny, int nz) {
 }
 
 void NavNode::computeAndPublishEsdf() {
-    if (!tree_ || drone_pose_.header.stamp.sec == 0) return;
+    updateDronePoseFromTf();
+    if (!tree_ || tree_->size() == 0 || drone_pose_.header.stamp.sec == 0) return;
 
     const double cx = drone_pose_.pose.position.x;
     const double cy = drone_pose_.pose.position.y;
+    const double cz = drone_pose_.pose.position.z;
 
-    // ESDF aktualisieren bei Distanz >= 2.5m ODER neuer OctoMap
+    // ESDF aktualisieren bei Distanz >= 2.5m ODER neuen Kartendaten
     {
         double dx = cx - esdf_center_x_;
         double dy = cy - esdf_center_y_;
-        double dz = drone_pose_.pose.position.z - esdf_center_z_;
+        double dz = cz - esdf_center_z_;
         bool moved = std::sqrt(dx*dx + dy*dy + dz*dz) >= esdf_recompute_dist_;
         if (esdf_initialized_ && !moved && !octomap_updated_)
             return;
         octomap_updated_ = false;
     }
-    const double cz = drone_pose_.pose.position.z;
 
-    const int nx = static_cast<int>(esdf_size_x_ / esdf_res_);
-    const int ny = static_cast<int>(esdf_size_y_ / esdf_res_);
-    const int nz = static_cast<int>(esdf_size_z_ / esdf_res_);
+    esdf_nx_ = static_cast<int>(esdf_size_x_ / esdf_res_);
+    esdf_ny_ = static_cast<int>(esdf_size_y_ / esdf_res_);
+    esdf_nz_ = static_cast<int>(esdf_size_z_ / esdf_res_);
+    const int nx = esdf_nx_, ny = esdf_ny_, nz = esdf_nz_;
 
     // Ursprung (min-Ecke) des lokalen Feldes
-    const double ox = cx - esdf_size_x_ / 2.0;
-    const double oy = cy - esdf_size_y_ / 2.0;
-    const double oz = cz - esdf_size_z_ / 2.0;
+    esdf_ox_ = cx - esdf_size_x_ / 2.0;
+    esdf_oy_ = cy - esdf_size_y_ / 2.0;
+    esdf_oz_ = cz - esdf_size_z_ / 2.0;
 
     constexpr double INF = 1e20;
-    std::vector<double> grid(nx * ny * nz, 0.0);  // Default: Hindernis (unbekannt = gefährlich)
+    // Distanzen NUR zu bekannt-besetzten Voxeln; Unbekannt läuft über die Maske
+    esdf_grid_.assign(nx * ny * nz, INF);
+    esdf_unknown_.assign(nx * ny * nz, 1);
 
-    // Octomap → lokales Grid: nur bekannt-freie Voxel als frei markieren
-    for (int iz = 0; iz < nz; ++iz) {
-        for (int iy = 0; iy < ny; ++iy) {
-            for (int ix = 0; ix < nx; ++ix) {
-                double wx = ox + (ix + 0.5) * esdf_res_;
-                double wy = oy + (iy + 0.5) * esdf_res_;
-                double wz = oz + (iz + 0.5) * esdf_res_;
-                octomap::OcTreeNode* node = tree_->search(wx, wy, wz);
-                if (node && !tree_->isNodeOccupied(node)) {
-                    grid[(iz * ny + iy) * nx + ix] = INF;  // Bekannt frei
+    // Ein Baumdurchlauf über das Fenster statt einer search()-Anfrage pro Zelle
+    const octomap::point3d pmin(esdf_ox_, esdf_oy_, esdf_oz_);
+    const octomap::point3d pmax(esdf_ox_ + esdf_size_x_,
+                                esdf_oy_ + esdf_size_y_,
+                                esdf_oz_ + esdf_size_z_);
+    // Zellen, deren Zentrum in [lo, hi] liegt
+    auto cellRange = [&](double lo, double hi, double o, int n, int& i0, int& i1) {
+        i0 = std::max(0, static_cast<int>(std::ceil((lo - o) / esdf_res_ - 0.5)));
+        i1 = std::min(n - 1, static_cast<int>(std::floor((hi - o) / esdf_res_ - 0.5)));
+    };
+    for (auto it = tree_->begin_leafs_bbx(pmin, pmax), end = tree_->end_leafs_bbx();
+         it != end; ++it) {
+        const double half = it.getSize() / 2.0;
+        const octomap::point3d c = it.getCoordinate();
+        int x0, x1, y0, y1, z0, z1;
+        cellRange(c.x() - half, c.x() + half, esdf_ox_, nx, x0, x1);
+        cellRange(c.y() - half, c.y() + half, esdf_oy_, ny, y0, y1);
+        cellRange(c.z() - half, c.z() + half, esdf_oz_, nz, z0, z1);
+        const bool occ = tree_->isNodeOccupied(*it);
+        for (int z = z0; z <= z1; ++z) {
+            for (int y = y0; y <= y1; ++y) {
+                for (int x = x0; x <= x1; ++x) {
+                    const int idx = (z * ny + y) * nx + x;
+                    esdf_unknown_[idx] = 0;
+                    if (occ) esdf_grid_[idx] = 0.0;
                 }
-                // Sonst: unbekannt oder besetzt → bleibt 0 (Hindernis)
             }
         }
     }
 
     // 3D EDT berechnen (Ergebnis: quadrierte Distanzen in Voxel-Einheiten)
-    edt3d(grid, nx, ny, nz);
+    edt3d(esdf_grid_, nx, ny, nz);
 
     // Zentrum merken
     esdf_center_x_ = cx;
     esdf_center_y_ = cy;
-    esdf_center_z_ = drone_pose_.pose.position.z;
+    esdf_center_z_ = cz;
     esdf_initialized_ = true;
 
+    publishEsdfSlices();
+
+    RCLCPP_DEBUG(get_logger(), "ESDF aktualisiert (%dx%dx%d, Zentrum: %.1f/%.1f/%.1f)",
+        nx, ny, nz, cx, cy, cz);
+
+    if (state_ == State::NAVIGATING && !last_global_path_.poses.empty()) {
+        // Neu aufgetauchte Hindernisse auf dem globalen Pfad → sofort global replanen
+        validateGlobalPath();
+        localPlanner();
+    }
+}
+
+void NavNode::publishEsdfSlices() {
+    const int nx = esdf_nx_, ny = esdf_ny_, nz = esdf_nz_;
+
     // Squared voxel distances → metrische Distanzen
-    // grid[i] enthält jetzt d²(voxel), also dist_m = sqrt(grid[i]) * esdf_res_
     auto distMetric = [&](int idx) -> double {
-        return std::sqrt(grid[idx]) * esdf_res_;
+        return std::sqrt(esdf_grid_[idx]) * esdf_res_;
     };
 
     // Distanz → Costmap-Wert [0..100]
@@ -434,10 +783,12 @@ void NavNode::computeAndPublishEsdf() {
     };
 
     auto stamp = now();
+    const double cy = esdf_center_y_;
+    const double cz = esdf_center_z_;
 
     // --- XY-Slice (horizontal, auf Drohnenhöhe) ---
     {
-        int iz = static_cast<int>((cz - oz) / esdf_res_);
+        int iz = static_cast<int>((cz - esdf_oz_) / esdf_res_);
         iz = std::clamp(iz, 0, nz - 1);
 
         nav_msgs::msg::OccupancyGrid og;
@@ -446,8 +797,8 @@ void NavNode::computeAndPublishEsdf() {
         og.info.resolution = esdf_res_;
         og.info.width = nx;
         og.info.height = ny;
-        og.info.origin.position.x = ox;
-        og.info.origin.position.y = oy;
+        og.info.origin.position.x = esdf_ox_;
+        og.info.origin.position.y = esdf_oy_;
         og.info.origin.position.z = cz;
         og.info.origin.orientation.w = 1.0;
         og.data.resize(nx * ny);
@@ -461,7 +812,7 @@ void NavNode::computeAndPublishEsdf() {
 
     // --- XZ-Slice (vertikal, durch Drohnen-Y) ---
     {
-        int iy = static_cast<int>((cy - oy) / esdf_res_);
+        int iy = static_cast<int>((cy - esdf_oy_) / esdf_res_);
         iy = std::clamp(iy, 0, ny - 1);
 
         nav_msgs::msg::OccupancyGrid og;
@@ -470,9 +821,9 @@ void NavNode::computeAndPublishEsdf() {
         og.info.resolution = esdf_res_;
         og.info.width = nx;
         og.info.height = nz;
-        og.info.origin.position.x = ox;
+        og.info.origin.position.x = esdf_ox_;
         og.info.origin.position.y = cy;
-        og.info.origin.position.z = oz;
+        og.info.origin.position.z = esdf_oz_;
         og.info.origin.orientation.w = 1.0;
         og.data.resize(nx * nz);
 
@@ -482,32 +833,60 @@ void NavNode::computeAndPublishEsdf() {
 
         esdf_slice_xz_pub_->publish(og);
     }
+}
 
-    RCLCPP_INFO(get_logger(), "ESDF aktualisiert (%dx%dx%d, Zentrum: %.1f/%.1f/%.1f)",
-        nx, ny, nz, cx, cy, cz);
+// Prüft den verbleibenden globalen Pfad gegen die aktuelle Karte (via ESDF).
+// Zwischen den 2-s-Replans neu aufgetauchte Hindernisse → sofort neu planen.
+void NavNode::validateGlobalPath() {
+    const auto& poses = last_global_path_.poses;
 
-    // Lokale Planung auf dem ESDF
-    if (state_ == State::NAVIGATING && !last_global_path_.poses.empty())
-        localPlanner(grid, nx, ny, nz, ox, oy, oz);
+    // Nächstgelegenen Wegpunkt zur Drohne suchen — nur der Rest des Pfads zählt
+    size_t nearest = 0;
+    double best = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < poses.size(); ++i) {
+        const auto& p = poses[i].pose.position;
+        double dx = p.x - drone_pose_.pose.position.x;
+        double dy = p.y - drone_pose_.pose.position.y;
+        double dz = p.z - drone_pose_.pose.position.z;
+        double d = dx*dx + dy*dy + dz*dz;
+        if (d < best) { best = d; nearest = i; }
+    }
+
+    for (size_t i = nearest; i < poses.size(); ++i) {
+        const auto& p = poses[i].pose.position;
+        const int ix = static_cast<int>((p.x - esdf_ox_) / esdf_res_);
+        const int iy = static_cast<int>((p.y - esdf_oy_) / esdf_res_);
+        const int iz = static_cast<int>((p.z - esdf_oz_) / esdf_res_);
+        if (ix < 0 || ix >= esdf_nx_ || iy < 0 || iy >= esdf_ny_ ||
+            iz < 0 || iz >= esdf_nz_)
+            continue;  // außerhalb des Fensters nicht prüfbar
+        const int idx = (iz * esdf_ny_ + iy) * esdf_nx_ + ix;
+        if (esdf_unknown_[idx]) continue;  // Unbekannt blockiert nicht
+        if (std::sqrt(esdf_grid_[idx]) * esdf_res_ < hard_collision_dist_) {
+            RCLCPP_WARN(get_logger(),
+                "Globaler Pfad durch neues Hindernis blockiert (Wegpunkt %zu) — Replan", i);
+            AstarPlanner();
+            return;
+        }
+    }
 }
 
 // --- Lokaler Planer ---
 
-double NavNode::sampleEsdf(const std::vector<double>& esdf_grid,
-                           int nx, int ny, int nz,
-                           double ox, double oy, double oz,
-                           double wx, double wy, double wz) const {
-    int ix = static_cast<int>((wx - ox) / esdf_res_);
-    int iy = static_cast<int>((wy - oy) / esdf_res_);
-    int iz = static_cast<int>((wz - oz) / esdf_res_);
-    if (ix < 0 || ix >= nx || iy < 0 || iy >= ny || iz < 0 || iz >= nz)
+double NavNode::sampleEsdf(double wx, double wy, double wz) const {
+    const int ix = static_cast<int>((wx - esdf_ox_) / esdf_res_);
+    const int iy = static_cast<int>((wy - esdf_oy_) / esdf_res_);
+    const int iz = static_cast<int>((wz - esdf_oz_) / esdf_res_);
+    if (ix < 0 || ix >= esdf_nx_ || iy < 0 || iy >= esdf_ny_ ||
+        iz < 0 || iz >= esdf_nz_)
         return 0.0;  // Außerhalb = unsicher
-    return std::sqrt(esdf_grid[(iz * ny + iy) * nx + ix]) * esdf_res_;
+    return std::sqrt(esdf_grid_[(iz * esdf_ny_ + iy) * esdf_nx_ + ix]) * esdf_res_;
 }
 
-void NavNode::localPlanner(const std::vector<double>& esdf_grid,
-                           int nx, int ny, int nz,
-                           double ox, double oy, double oz) {
+void NavNode::localPlanner() {
+    const int nx = esdf_nx_, ny = esdf_ny_, nz = esdf_nz_;
+    const double ox = esdf_ox_, oy = esdf_oy_, oz = esdf_oz_;
+
     // Lokales Ziel: letzter Punkt des globalen Pfads innerhalb des Fensters
     const double max_x = ox + esdf_size_x_;
     const double max_y = oy + esdf_size_y_;
@@ -519,8 +898,8 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
         if (p.x >= ox && p.x < max_x &&
             p.y >= oy && p.y < max_y &&
             p.z >= oz && p.z < max_z) {
-            // Nur akzeptieren wenn der Punkt in bekannt-freiem Raum liegt
-            double dist = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz, p.x, p.y, p.z);
+            // Nur akzeptieren wenn der Punkt genug Abstand zu bekannten Hindernissen hat
+            double dist = sampleEsdf(p.x, p.y, p.z);
             if (dist > hard_collision_dist_) {
                 local_goal_idx = i;
                 break;
@@ -529,7 +908,16 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
     }
 
     if (local_goal_idx < 0) {
-        RCLCPP_WARN(get_logger(), "Kein erreichbarer globaler Wegpunkt im lokalen Fenster");
+        // Committete Route liegt nicht mehr befahrbar im lokalen Fenster — meist
+        // weil die Drohne abgedriftet ist oder der Wald sich zugesetzt hat. Frische
+        // globale Route von der aktuellen Position holen (stellt das alte "immer
+        // neu planen" fuer genau diesen Fall wieder her, ohne den Sticky-Replan
+        // sonst aufzugeben). Hilft der Replan, resettet der naechste Zyklus den
+        // Zaehler; bleibt es haengen, greift nach max_failures_ der Abbruch.
+        RCLCPP_WARN(get_logger(),
+            "Kein Wegpunkt im lokalen Fenster — globaler Replan von aktueller Position");
+        AstarPlanner();
+        planFailed("lokal kein Wegpunkt");
         return;
     }
 
@@ -550,7 +938,7 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
         return ix >= 0 && ix < nx && iy >= 0 && iy < ny && iz >= 0 && iz < nz;
     };
     auto esdfDist = [&](int ix, int iy, int iz) -> double {
-        return std::sqrt(esdf_grid[(iz * ny + iy) * nx + ix]) * esdf_res_;
+        return std::sqrt(esdf_grid_[(iz * ny + iy) * nx + ix]) * esdf_res_;
     };
 
     auto [sx, sy, sz] = worldToIdx(drone_pose_.pose.position.x,
@@ -564,6 +952,11 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
     gx = std::clamp(gx, 0, nx - 1);
     gy = std::clamp(gy, 0, ny - 1);
     gz = std::clamp(gz, 0, nz - 1);
+
+    // Steht die Drohne bereits unter dem Mindestabstand (Drift, frische Karte),
+    // nicht komplett blockieren — Flucht erlauben, solange es nicht näher ans
+    // Hindernis geht als die aktuelle Position.
+    const double block_dist = std::min(hard_collision_dist_, esdfDist(sx, sy, sz));
 
     // 26-connected A* mit ESDF-Kostenfunktion
     struct Cell {
@@ -593,15 +986,18 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
         return std::sqrt(dx*dx + dy*dy + dz*dz);
     };
 
-    // Traversal-Kosten: Bewegung + ESDF-Penalty
+    // Traversal-Kosten: Bewegung + ESDF-Penalty + Unknown-Penalty
     auto traversalCost = [&](const Cell& c, double move_dist) -> double {
-        double d = esdfDist(c.x, c.y, c.z);
-        if (d < hard_collision_dist_) return 1e10;  // Quasi-blockiert
+        const int idx = (c.z * ny + c.y) * nx + c.x;
+        double d = std::sqrt(esdf_grid_[idx]) * esdf_res_;
+        if (d < block_dist) return 1e10;  // Quasi-blockiert
         double penalty = 0.0;
         if (d < safety_dist_) {
             double ratio = (safety_dist_ - d) / safety_dist_;
             penalty = obstacle_penalty_weight_ * ratio * ratio;
         }
+        // Gleiche Unknown-Politik wie der globale Planer: erlaubt, aber bestraft
+        if (esdf_unknown_[idx]) penalty += unknown_penalty_weight_;
         return move_dist + penalty;
     };
 
@@ -648,6 +1044,7 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
 
     if (!found) {
         RCLCPP_WARN(get_logger(), "Lokaler Pfad nicht gefunden (%zu expandiert)", expanded);
+        planFailed("lokal kein Pfad");
         return;
     }
 
@@ -663,7 +1060,7 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
     std::reverse(path.begin(), path.end());
 
     // Pfad glätten
-    smoothPath(path, esdf_grid, nx, ny, nz, ox, oy, oz);
+    smoothPath(path);
 
     // Publizieren
     nav_msgs::msg::Path path_msg;
@@ -678,15 +1075,19 @@ void NavNode::localPlanner(const std::vector<double>& esdf_grid,
         ps.pose.orientation.w = 1.0;
         path_msg.poses.push_back(ps);
     }
+
+    // Endet der lokale Pfad am globalen Ziel → Ziel-Yaw übernehmen
+    if (local_goal_idx == static_cast<int>(last_global_path_.poses.size()) - 1)
+        path_msg.poses.back().pose.orientation =
+            last_global_path_.poses.back().pose.orientation;
+
     local_path_pub_->publish(path_msg);
+    consecutive_failures_ = 0;  // voller Planungszyklus erfolgreich
 
     RCLCPP_INFO(get_logger(), "Lokaler Pfad: %zu Wegpunkte (%zu expandiert)", path.size(), expanded);
 }
 
-void NavNode::smoothPath(std::vector<std::array<double, 3>>& path,
-                         const std::vector<double>& esdf_grid,
-                         int nx, int ny, int nz,
-                         double ox, double oy, double oz) {
+void NavNode::smoothPath(std::vector<std::array<double, 3>>& path) {
     if (path.size() < 3) return;
 
     const int n = static_cast<int>(path.size());
@@ -702,18 +1103,15 @@ void NavNode::smoothPath(std::vector<std::array<double, 3>>& path,
                 smooth_delta[d] = (path[i-1][d] + path[i+1][d]) / 2.0 - p[d];
 
             // ESDF-Gradient (numerisch, zentrale Differenzen)
-            double dist_here = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz,
-                                          p[0], p[1], p[2]);
+            double dist_here = sampleEsdf(p[0], p[1], p[2]);
             std::array<double, 3> obs_delta = {0, 0, 0};
             if (dist_here < safety_dist_) {
                 for (int d = 0; d < 3; ++d) {
                     std::array<double, 3> p_plus = p, p_minus = p;
                     p_plus[d] += grad_step;
                     p_minus[d] -= grad_step;
-                    double d_plus = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz,
-                                               p_plus[0], p_plus[1], p_plus[2]);
-                    double d_minus = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz,
-                                                p_minus[0], p_minus[1], p_minus[2]);
+                    double d_plus = sampleEsdf(p_plus[0], p_plus[1], p_plus[2]);
+                    double d_minus = sampleEsdf(p_minus[0], p_minus[1], p_minus[2]);
                     double grad = (d_plus - d_minus) / (2.0 * grad_step);
                     // Abstoßung: in Richtung steigender Distanz
                     double strength = (safety_dist_ - dist_here) / safety_dist_;
@@ -726,8 +1124,7 @@ void NavNode::smoothPath(std::vector<std::array<double, 3>>& path,
                 p[d] += smooth_weight_ * smooth_delta[d] + obs_delta[d];
 
             // Sicherheitscheck: nicht in Hindernis schieben
-            double new_dist = sampleEsdf(esdf_grid, nx, ny, nz, ox, oy, oz,
-                                         p[0], p[1], p[2]);
+            double new_dist = sampleEsdf(p[0], p[1], p[2]);
             if (new_dist < hard_collision_dist_) {
                 // Rollback
                 for (int d = 0; d < 3; ++d)

@@ -85,7 +85,7 @@ def generate_launch_description():
                 f"echo $GZ_SIM_RESOURCE_PATH && "
                 f"echo $GZ_SIM_SYSTEM_PLUGIN_PATH && "
                 f"echo $GZ_SIM_SERVER_CONFIG_PATH && "
-                f"gz sim -v 4 -r -s {world}"
+                f"gz sim -r -s {world}"
             ],
             additional_env = {
                 "PX4_GZ_MODELS": px4_gz_models,

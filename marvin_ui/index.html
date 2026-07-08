@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Marvin Ground Control</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; background: #0b0e14; color: #cdd6e4;
+    font: 13px/1.5 'Segoe UI', system-ui, sans-serif; }
+  #view { position: absolute; inset: 0; }
+  .panel { position: absolute; background: rgba(16,20,30,.82); backdrop-filter: blur(8px);
+    border: 1px solid rgba(120,160,220,.15); border-radius: 10px; padding: 12px 16px; }
+  #hud { top: 14px; left: 14px; min-width: 210px; }
+  #hud h1 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase;
+    color: #7fb3ff; margin-bottom: 8px; }
+  #hud .row { display: flex; justify-content: space-between; gap: 16px; }
+  #hud .row b { font-weight: 600; color: #eef3fa; font-variant-numeric: tabular-nums; }
+  #dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+    background: #e05555; margin-right: 6px; vertical-align: 1px; }
+  #dot.ok { background: #4cd97b; }
+  #bar { bottom: 14px; left: 50%; transform: translateX(-50%); display: flex;
+    align-items: center; gap: 14px; padding: 10px 16px; }
+  button { background: #1b2434; color: #cdd6e4; border: 1px solid rgba(120,160,220,.25);
+    border-radius: 6px; padding: 6px 14px; cursor: pointer; font: inherit; }
+  button:hover { background: #263450; }
+  button.active { background: #2a4a86; color: #fff; border-color: #5b8de0; }
+  #bar label { display: flex; align-items: center; gap: 8px; color: #93a3ba; }
+  #hint { bottom: 14px; right: 14px; color: #93a3ba; font-size: 12px; padding: 8px 12px; }
+  input[type=range] { width: 110px; accent-color: #5b8de0; }
+  #pfd { bottom: 14px; left: 14px; display: flex; align-items: center; gap: 14px; }
+  #pfd .col { text-align: center; min-width: 78px; display: flex; flex-direction: column; gap: 2px; }
+  #pfd .v { font-size: 24px; font-weight: 600; color: #eef3fa; font-variant-numeric: tabular-nums; }
+  #pfd .v.s { font-size: 15px; margin-top: 6px; }
+  #pfd .u { font-size: 10px; color: #93a3ba; }
+  #minimapFrame { position: absolute; top: 14px; right: 14px; width: 220px; height: 220px;
+    border: 1px solid rgba(120,160,220,.3); border-radius: 4px; pointer-events: none; }
+  #minimapFrame span { position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
+    color: #7fb3ff; font-weight: 600; text-shadow: 0 0 4px #000; }
+</style>
+</head>
+<body>
+<div id="view"></div>
+
+<div id="hud" class="panel">
+  <h1><span id="dot"></span>Marvin</h1>
+  <div class="row"><span>Modus</span><b id="mode">—</b></div>
+  <div class="row"><span>Armed</span><b id="armed">—</b></div>
+  <div class="row"><span>Batterie</span><b id="batt">—</b></div>
+  <div class="row"><span>Position</span><b id="pos">—</b></div>
+  <div class="row"><span>Punkte</span><b id="npts">0</b></div>
+</div>
+
+<div id="bar" class="panel">
+  <button id="followBtn">Folgen</button>
+  <button id="clearBtn">Karte leeren</button>
+  <label>Ziel-Höhe <input id="goalZ" type="range" min="0.5" max="10" step="0.5" value="1.5">
+    <b id="goalZv">1.5 m</b></label>
+</div>
+
+<div id="pfd" class="panel">
+  <div class="col">
+    <div class="v" id="spd">0.0</div><div class="u">m/s horizontal</div>
+    <div class="v s" id="vs">— 0.0</div><div class="u">m/s vertikal</div>
+  </div>
+  <canvas id="horizon" width="170" height="170"></canvas>
+  <div class="col">
+    <div class="v" id="alt">0.0</div><div class="u">m Höhe</div>
+    <div class="v s" id="hdg">000°</div><div class="u" id="card">N</div>
+  </div>
+</div>
+
+<div id="minimapFrame"><span>N</span></div>
+
+<div id="hint" class="panel">Doppelklick = Ziel setzen · Ziehen = drehen · Rechtsklick = schieben</div>
+
+<script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ---------- Szene (ROS ist Z-up) ----------
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0e14);
+scene.fog = new THREE.Fog(0x0b0e14, 60, 160);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 500);
+camera.position.set(-12, -12, 8);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+document.getElementById('view').appendChild(renderer.domElement);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+const grid = new THREE.GridHelper(200, 100, 0x2a3550, 0x18202e);
+grid.rotation.x = Math.PI / 2; // GridHelper liegt in XZ, wir brauchen XY (Z-up)
+scene.add(grid);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+sun.position.set(20, -30, 50);
+scene.add(sun);
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- Akkumulierte Punktwolke ----------
+// ponytail: Voxel-Dedup im Browser statt Octomap-Dekodierung; reicht bis ~2M Punkte.
+const MAX_PTS = 2_000_000, VOX = 0.05, Z0 = -0.5, Z1 = 8;
+const positions = new Float32Array(MAX_PTS * 3);
+const colors = new Float32Array(MAX_PTS * 3);
+let nPts = 0;
+const seen = new Set();
+const cloudGeo = new THREE.BufferGeometry();
+cloudGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+cloudGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+cloudGeo.setDrawRange(0, 0);
+const cloud = new THREE.Points(cloudGeo,
+  new THREE.PointsMaterial({ size: 0.06, vertexColors: true }));
+cloud.frustumCulled = false;
+scene.add(cloud);
+
+const tmpC = new THREE.Color();
+function addPoint(x, y, z) {
+  if (nPts >= MAX_PTS || !isFinite(x) || !isFinite(y) || !isFinite(z)) return;
+  if (Math.abs(x) > 1500 || Math.abs(y) > 1500 || Math.abs(z) > 1500) return;
+  const OFF = 1 << 15, SPAN = 1 << 16;
+  const key = ((Math.round(x / VOX) + OFF) * SPAN + (Math.round(y / VOX) + OFF)) * SPAN
+    + (Math.round(z / VOX) + OFF);
+  if (seen.has(key)) return;
+  seen.add(key);
+  positions.set([x, y, z], nPts * 3);
+  const t = Math.min(1, Math.max(0, (z - Z0) / (Z1 - Z0)));
+  tmpC.setHSL(0.62 - 0.62 * t, 0.85, 0.35 + 0.3 * t);
+  colors.set([tmpC.r, tmpC.g, tmpC.b], nPts * 3);
+  nPts++;
+}
+function flushCloud() {
+  cloudGeo.setDrawRange(0, nPts);
+  cloudGeo.attributes.position.needsUpdate = true;
+  cloudGeo.attributes.color.needsUpdate = true;
+  document.getElementById('npts').textContent = nPts.toLocaleString('de-DE');
+}
+
+// PointCloud2 → Punkte (rosbridge liefert data als Uint8Array (cbor) oder base64-String)
+function parseCloud(msg) {
+  let data = msg.data;
+  if (typeof data === 'string') {
+    const bin = atob(data);
+    data = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i);
+  }
+  const off = {};
+  for (const f of msg.fields) off[f.name] = f.offset;
+  if (off.x === undefined) return;
+  const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const step = msg.point_step, n = Math.floor(data.byteLength / step);
+  for (let i = 0; i < n; i++) {
+    const o = i * step;
+    addPoint(dv.getFloat32(o + off.x, true), dv.getFloat32(o + off.y, true),
+      dv.getFloat32(o + off.z, true));
+  }
+  flushCloud();
+}
+
+// Selbsttest des Parsers mit einer synthetischen 2-Punkte-Wolke
+(function selfTest() {
+  const buf = new ArrayBuffer(32), dv = new DataView(buf);
+  [[1, 2, 3], [4, 5, 6]].forEach((p, i) =>
+    p.forEach((v, j) => dv.setFloat32(i * 16 + j * 4, v, true)));
+  parseCloud({ fields: [{ name: 'x', offset: 0 }, { name: 'y', offset: 4 },
+    { name: 'z', offset: 8 }], point_step: 16, data: new Uint8Array(buf) });
+  console.assert(nPts === 2 && positions[3] === 4, 'PointCloud2-Parser defekt');
+  nPts = 0; seen.clear(); flushCloud();
+})();
+
+// ---------- Drohne ----------
+function makeDrone() {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x35507e, roughness: 0.5 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.12), bodyMat);
+  g.add(body);
+  const armMat = new THREE.MeshStandardMaterial({ color: 0x1c2636 });
+  const rotorMat = new THREE.MeshBasicMaterial({ color: 0x7fb3ff, transparent: true, opacity: 0.35 });
+  for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34), armMat);
+    arm.rotation.z = Math.atan2(dy, dx) + Math.PI / 2;
+    arm.rotation.x = Math.PI / 2;
+    arm.position.set(dx * 0.14, dy * 0.14, 0.02);
+    g.add(arm);
+    const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.01), rotorMat);
+    rotor.rotation.x = Math.PI / 2;
+    rotor.position.set(dx * 0.26, dy * 0.26, 0.06);
+    g.add(rotor);
+  }
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14),
+    new THREE.MeshBasicMaterial({ color: 0xff5566 }));
+  nose.rotation.z = -Math.PI / 2;
+  nose.position.x = 0.2;
+  g.add(nose);
+  return g;
+}
+const drone = makeDrone();
+scene.add(drone);
+
+// Minimap-Pfeil: nur auf Layer 1 (sieht nur die Minimap-Kamera)
+const mapMarker = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3, 3),
+  new THREE.MeshBasicMaterial({ color: 0x4cd97b }));
+mapMarker.rotation.z = -Math.PI / 2; // Spitze in Flugrichtung (+x)
+mapMarker.layers.set(1);
+drone.add(mapMarker);
+
+const mapCam = new THREE.OrthographicCamera(-18, 18, 18, -18, 1, 200);
+mapCam.up.set(0, 1, 0); // Norden oben
+mapCam.layers.enable(1);
+
+// Flugspur
+const trail = makeLine(0x35c8e0);
+trail.material.transparent = true;
+trail.material.opacity = 0.7;
+const trailPts = [];
+
+// Geschwindigkeit: Odometrie-Pose differenzieren (FAST-LIO füllt twist nicht zuverlässig)
+let lastOdomT = null;
+const prevP = new THREE.Vector3(), vSm = new THREE.Vector3(), tmpV = new THREE.Vector3();
+
+// ---------- Pfade + Zielmarker ----------
+function makeLine(color) {
+  const line = new THREE.Line(new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color }));
+  line.frustumCulled = false;
+  scene.add(line);
+  return line;
+}
+const globalPath = makeLine(0x4cd97b);
+const localPath = makeLine(0xffd24c);
+function setPath(line, msg) {
+  line.geometry.setFromPoints(msg.poses.map(p =>
+    new THREE.Vector3(p.pose.position.x, p.pose.position.y, p.pose.position.z)));
+}
+
+const goalMarker = new THREE.Group();
+const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04),
+  new THREE.MeshBasicMaterial({ color: 0xe055c8 }));
+goalMarker.add(ring);
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 20),
+  new THREE.MeshBasicMaterial({ color: 0xe055c8, transparent: true, opacity: 0.25 }));
+pole.rotation.x = Math.PI / 2;
+goalMarker.add(pole);
+goalMarker.visible = false;
+scene.add(goalMarker);
+
+// ---------- ROS-Verbindung ----------
+const wsUrl = new URLSearchParams(location.search).get('ws')
+  || `ws://${location.hostname || 'localhost'}:9090`;
+const $ = id => document.getElementById(id);
+let goalTopic = null;
+
+function connect() {
+  const ros = new ROSLIB.Ros({ url: wsUrl });
+  ros.on('connection', () => $('dot').classList.add('ok'));
+  ros.on('close', () => { $('dot').classList.remove('ok'); setTimeout(connect, 2000); });
+  ros.on('error', () => {});
+  const sub = (name, messageType, cb, opts = {}) =>
+    new ROSLIB.Topic({ ros, name, messageType, ...opts }).subscribe(cb);
+
+  sub('/cloud_registered', 'sensor_msgs/msg/PointCloud2', parseCloud,
+    { compression: 'cbor', throttle_rate: 400, queue_length: 1 });
+  sub('/Odometry', 'nav_msgs/msg/Odometry', m => {
+    const p = m.pose.pose.position, q = m.pose.pose.orientation;
+    drone.position.set(p.x, p.y, p.z);
+    drone.quaternion.set(q.x, q.y, q.z, q.w);
+    $('pos').textContent = `${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}`;
+    const t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9;
+    if (lastOdomT !== null) {
+      const dt = t - lastOdomT;
+      if (dt > 1e-4 && dt < 1) {
+        tmpV.set((p.x - prevP.x) / dt, (p.y - prevP.y) / dt, (p.z - prevP.z) / dt);
+        vSm.lerp(tmpV, 0.3);
+      }
+    }
+    lastOdomT = t;
+    prevP.set(p.x, p.y, p.z);
+    const lastTrail = trailPts[trailPts.length - 1];
+    if (!lastTrail || lastTrail.distanceToSquared(drone.position) > 0.01) {
+      trailPts.push(drone.position.clone());
+      if (trailPts.length > 4000) trailPts.shift();
+      trail.geometry.setFromPoints(trailPts);
+    }
+  }, { throttle_rate: 100 });
+  sub('/planned_path', 'nav_msgs/msg/Path', m => setPath(globalPath, m));
+  sub('/local_planned_path', 'nav_msgs/msg/Path', m => setPath(localPath, m));
+  sub('/mavros/state', 'mavros_msgs/msg/State', m => {
+    $('mode').textContent = m.mode || '—';
+    $('armed').textContent = m.armed ? 'JA' : 'nein';
+    $('armed').style.color = m.armed ? '#4cd97b' : '';
+  });
+  sub('/mavros/battery', 'sensor_msgs/msg/BatteryState', m => {
+    const pct = Math.round(m.percentage * 100);
+    $('batt').textContent = `${pct} %`;
+    $('batt').style.color = pct > 50 ? '#4cd97b' : pct > 20 ? '#ffd24c' : '#e05555';
+  }, { throttle_rate: 2000 });
+
+  goalTopic = new ROSLIB.Topic({ ros, name: '/goal_pose',
+    messageType: 'geometry_msgs/msg/PoseStamped' });
+}
+connect();
+
+// ---------- Interaktion ----------
+let follow = false;
+$('followBtn').onclick = () => {
+  follow = !follow;
+  $('followBtn').classList.toggle('active', follow);
+};
+$('clearBtn').onclick = () => { nPts = 0; seen.clear(); flushCloud(); };
+$('goalZ').oninput = () => $('goalZv').textContent = `${$('goalZ').value} m`;
+
+const raycaster = new THREE.Raycaster();
+renderer.domElement.addEventListener('dblclick', e => {
+  if (!goalTopic) return;
+  if (e.clientX > innerWidth - 234 && e.clientY < 234) return; // Minimap-Bereich
+  const ndc = new THREE.Vector2(e.clientX / innerWidth * 2 - 1,
+    -(e.clientY / innerHeight) * 2 + 1);
+  raycaster.setFromCamera(ndc, camera);
+  const z = parseFloat($('goalZ').value);
+  const hit = new THREE.Vector3();
+  if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -z), hit)) return;
+  const yaw = Math.atan2(hit.y - drone.position.y, hit.x - drone.position.x);
+  goalTopic.publish(new ROSLIB.Message({
+    header: { frame_id: 'map', stamp: { sec: 0, nanosec: 0 } },
+    pose: { position: { x: hit.x, y: hit.y, z },
+      orientation: { x: 0, y: 0, z: Math.sin(yaw / 2), w: Math.cos(yaw / 2) } }
+  }));
+  goalMarker.position.copy(hit);
+  goalMarker.visible = true;
+});
+
+// ---------- Künstlicher Horizont ----------
+const hzC = $('horizon').getContext('2d');
+function drawHorizon(roll, pitchUp) {
+  const W = 170, R = 78, PX = 2.4; // Pixel pro Grad Pitch
+  hzC.clearRect(0, 0, W, W);
+  hzC.save();
+  hzC.translate(W / 2, W / 2);
+  hzC.beginPath(); hzC.arc(0, 0, R, 0, 7); hzC.clip();
+  hzC.save();
+  hzC.rotate(-roll);
+  const off = pitchUp * 180 / Math.PI * PX;
+  hzC.fillStyle = '#2e6da8'; hzC.fillRect(-200, -200 + off, 400, 200); // Himmel
+  hzC.fillStyle = '#6e4522'; hzC.fillRect(-200, off, 400, 200);        // Boden
+  hzC.strokeStyle = '#fff'; hzC.lineWidth = 2;
+  hzC.beginPath(); hzC.moveTo(-200, off); hzC.lineTo(200, off); hzC.stroke();
+  hzC.lineWidth = 1; hzC.fillStyle = '#fff';
+  hzC.font = '9px sans-serif'; hzC.textAlign = 'center';
+  for (let d = -30; d <= 30; d += 10) { // Pitch-Leiter
+    if (!d) continue;
+    const y = off + d * PX, w = d % 20 ? 14 : 24;
+    hzC.beginPath(); hzC.moveTo(-w, y); hzC.lineTo(w, y); hzC.stroke();
+    hzC.fillText(Math.abs(d), w + 12, y + 3);
+  }
+  hzC.restore();
+  hzC.strokeStyle = '#cdd6e4'; hzC.lineWidth = 1.5; // Roll-Skala
+  for (const a of [-60, -45, -30, -15, 0, 15, 30, 45, 60]) {
+    const r = a * Math.PI / 180;
+    hzC.beginPath();
+    hzC.moveTo(Math.sin(r) * (R - 8), -Math.cos(r) * (R - 8));
+    hzC.lineTo(Math.sin(r) * R, -Math.cos(r) * R);
+    hzC.stroke();
+  }
+  hzC.fillStyle = '#ffd24c'; // Roll-Zeiger
+  hzC.save(); hzC.rotate(-roll);
+  hzC.beginPath(); hzC.moveTo(0, -R + 12); hzC.lineTo(-5, -R + 22);
+  hzC.lineTo(5, -R + 22); hzC.fill();
+  hzC.restore();
+  hzC.strokeStyle = '#ffd24c'; hzC.lineWidth = 3; // festes Flugzeugsymbol
+  hzC.beginPath();
+  hzC.moveTo(-34, 0); hzC.lineTo(-10, 0); hzC.lineTo(-6, 6);
+  hzC.moveTo(34, 0); hzC.lineTo(10, 0); hzC.lineTo(6, 6);
+  hzC.stroke();
+  hzC.fillRect(-2, -2, 4, 4);
+  hzC.restore();
+}
+
+// ---------- Render-Loop ----------
+const CARD = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
+const eulTmp = new THREE.Euler();
+const mainFog = scene.fog;
+renderer.setAnimationLoop(t => {
+  if (follow) controls.target.lerp(drone.position, 0.08);
+  ring.rotation.x = t / 600;
+  controls.update();
+
+  // Instrumente (FLU: roll = x rechts-positiv, pitchUp = -y, yaw = z ENU)
+  eulTmp.setFromQuaternion(drone.quaternion, 'ZYX');
+  drawHorizon(eulTmp.x, -eulTmp.y);
+  const hdg = (90 - eulTmp.z * 180 / Math.PI + 360) % 360;
+  $('hdg').textContent = `${hdg.toFixed(0).padStart(3, '0')}°`;
+  $('card').textContent = CARD[Math.round(hdg / 45) % 8];
+  $('spd').textContent = Math.hypot(vSm.x, vSm.y).toFixed(1);
+  $('vs').textContent = `${vSm.z >= 0 ? '↑' : '↓'} ${Math.abs(vSm.z).toFixed(1)}`;
+  $('vs').style.color = Math.abs(vSm.z) < 0.2 ? '' : vSm.z > 0 ? '#4cd97b' : '#ffd24c';
+  $('alt').textContent = drone.position.z.toFixed(1);
+
+  // Hauptansicht + Minimap (Scissor-Inset oben rechts, deckungsgleich mit #minimapFrame)
+  const W = innerWidth, H = innerHeight, S = 220, M = 14;
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, 0, W, H);
+  renderer.setScissor(0, 0, W, H);
+  renderer.render(scene, camera);
+  mapCam.position.set(drone.position.x, drone.position.y, drone.position.z + 60);
+  mapCam.lookAt(drone.position.x, drone.position.y, drone.position.z);
+  scene.fog = null;
+  renderer.setViewport(W - S - M, H - S - M, S, S);
+  renderer.setScissor(W - S - M, H - S - M, S, S);
+  renderer.render(scene, mapCam);
+  scene.fog = mainFog;
+  renderer.setScissorTest(false);
+});
+</script>
+</body>
+</html>

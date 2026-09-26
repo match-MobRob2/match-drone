@@ -32,6 +32,10 @@ setup(
             'lidar_camera_fusion = marvin_utils.map_livox_to_realsense:main',
             'map_livox_to_realsense = marvin_utils.map_livox_to_realsense:main',
             'pursuit = marvin_utils.pursuit:main',
+            'light_controller = marvin_utils.light_controller:main',
+            'light_watchdog = marvin_utils.light_watchdog:main',
+            'recorder = marvin_utils.recorder:main',
+            'keyframe_recorder = marvin_utils.keyframe_recorder:main',
         ],
     },
 )

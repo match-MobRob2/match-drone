@@ -1,0 +1,7 @@
+# Nicht ueber rosdep verwaltet -- manuell installieren (siehe README.md):
+#   pip install --user -r requirements.txt
+numpy
+scipy
+open3d
+ortools
+tomli; python_version < "3.11"

@@ -5,38 +5,113 @@
 <title>Marvin Ground Control</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  :root { --bg: #0b0e14; --panel: rgba(15,19,28,.9); --line: rgba(120,160,220,.16); --txt: #cdd6e4;
+    --dim: #8a9ab2; --hi: #eef3fa; --acc: #6fa8ff; --ok: #4cd97b; --warn: #ffd24c; --bad: #e86060; --wp: #e055c8; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; overflow: hidden; background: #0b0e14; color: #cdd6e4;
-    font: 13px/1.5 'Segoe UI', system-ui, sans-serif; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--txt);
+    font: 13px/1.45 'Segoe UI', system-ui, sans-serif; }
   #view { position: absolute; inset: 0; }
-  .panel { position: absolute; background: rgba(16,20,30,.82); backdrop-filter: blur(8px);
-    border: 1px solid rgba(120,160,220,.15); border-radius: 10px; padding: 12px 16px; }
-  #hud { top: 14px; left: 14px; min-width: 210px; }
-  #hud h1 { font-size: 14px; letter-spacing: .08em; text-transform: uppercase;
-    color: #7fb3ff; margin-bottom: 8px; }
-  #hud .row { display: flex; justify-content: space-between; gap: 16px; }
-  #hud .row b { font-weight: 600; color: #eef3fa; font-variant-numeric: tabular-nums; }
-  #dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
-    background: #e05555; margin-right: 6px; vertical-align: 1px; }
-  #dot.ok { background: #4cd97b; }
-  #bar { bottom: 14px; left: 50%; transform: translateX(-50%); display: flex;
-    align-items: center; gap: 14px; padding: 10px 16px; }
-  button { background: #1b2434; color: #cdd6e4; border: 1px solid rgba(120,160,220,.25);
-    border-radius: 6px; padding: 6px 14px; cursor: pointer; font: inherit; }
-  button:hover { background: #263450; }
+  .panel { position: absolute; background: var(--panel); backdrop-filter: blur(8px);
+    border: 1px solid var(--line); border-radius: 10px; }
+  b, .num { font-variant-numeric: tabular-nums; }
+  button, select, input { font: inherit; color: var(--txt); background: #182131;
+    border: 1px solid rgba(120,160,220,.25); border-radius: 6px; }
+  button { padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+  button:hover:not(:disabled) { background: #22304a; }
+  button:disabled { opacity: .38; cursor: default; }
   button.active { background: #2a4a86; color: #fff; border-color: #5b8de0; }
-  #bar label { display: flex; align-items: center; gap: 8px; color: #93a3ba; }
-  #hint { bottom: 14px; right: 14px; color: #93a3ba; font-size: 12px; padding: 8px 12px; }
+  button.go { border-color: rgba(76,217,123,.6); }
+  button.go:not(:disabled) { background: #173323; }
+  button.danger { border-color: rgba(232,96,96,.55); }
+  button.icon { padding: 2px 6px; font-size: 12px; }
+  select { padding: 4px 6px; }
+  input[type=text], input[type=number] { padding: 4px 7px; width: 100%; }
+  input[type=number] { -moz-appearance: textfield; }
+  input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
   input[type=range] { width: 110px; accent-color: #5b8de0; }
-  #pfd { bottom: 14px; left: 14px; display: flex; align-items: center; gap: 14px; }
-  #pfd .col { text-align: center; min-width: 78px; display: flex; flex-direction: column; gap: 2px; }
-  #pfd .v { font-size: 24px; font-weight: 600; color: #eef3fa; font-variant-numeric: tabular-nums; }
-  #pfd .v.s { font-size: 15px; margin-top: 6px; }
-  #pfd .u { font-size: 10px; color: #93a3ba; }
-  #minimapFrame { position: absolute; top: 14px; right: 14px; width: 220px; height: 220px;
-    border: 1px solid rgba(120,160,220,.3); border-radius: 4px; pointer-events: none; }
+  input[type=checkbox] { accent-color: #5b8de0; }
+
+  /* --- HUD links oben, Minimap darunter --- */
+  #hud { top: 14px; left: 14px; width: 230px; padding: 10px 14px; }
+  #hud h1 { font-size: 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--acc); margin-bottom: 6px; }
+  .kv { display: flex; justify-content: space-between; gap: 10px; }
+  .kv b { color: var(--hi); font-weight: 600; }
+  #dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--bad);
+    margin-right: 7px; vertical-align: 1px; }
+  #dot.ok { background: var(--ok); }
+  #minimapFrame { position: absolute; top: 172px; left: 14px; width: 230px; height: 230px;
+    border: 1px solid rgba(120,160,220,.3); border-radius: 6px; pointer-events: none; }
   #minimapFrame span { position: absolute; top: 2px; left: 50%; transform: translateX(-50%);
-    color: #7fb3ff; font-weight: 600; text-shadow: 0 0 4px #000; }
+    color: var(--acc); font-weight: 600; text-shadow: 0 0 4px #000; }
+
+  /* --- Instrumente links unten, Leiste Mitte unten --- */
+  #pfd { bottom: 14px; left: 14px; display: flex; align-items: center; gap: 14px; padding: 10px 14px; }
+  #pfd .col { text-align: center; min-width: 78px; display: flex; flex-direction: column; gap: 2px; }
+  #pfd .v { font-size: 24px; font-weight: 600; color: var(--hi); }
+  #pfd .v.s { font-size: 15px; margin-top: 6px; }
+  #pfd .u { font-size: 10px; color: var(--dim); }
+  #bar { bottom: 14px; left: calc(50% - 200px); transform: translateX(-50%); display: flex; align-items: center;
+    gap: 14px; padding: 8px 14px; }
+  #bar label { display: flex; align-items: center; gap: 8px; color: var(--dim); }
+  #cam { bottom: 64px; left: calc(50% - 200px); transform: translateX(-50%); padding: 4px; display: none; }
+  #cam img { display: block; width: 400px; max-width: calc(100vw - 480px); border-radius: 7px; background: #000; min-height: 60px; }
+  #cam span { position: absolute; top: 8px; left: 12px; font-size: 11px; color: #fff; text-shadow: 0 0 3px #000; }
+  #hint { top: 14px; left: calc(50% - 200px); transform: translateX(-50%); color: var(--warn); padding: 8px 14px;
+    display: none; }
+
+  /* --- Seitenpanel rechts mit Tabs --- */
+  #side { top: 14px; right: 14px; bottom: 14px; width: 400px; display: flex; flex-direction: column; }
+  #tabs { display: flex; border-bottom: 1px solid var(--line); }
+  #failsafe { display: none; margin: 10px 12px 0; padding: 9px 11px; border-radius: 8px; background: #4a1c1c;
+    border: 1px solid var(--bad); color: #ffd0d0; font-size: 12px; }
+  #failsafe b { display: block; color: #fff; font-size: 13px; margin-bottom: 3px; }
+  #tabs button { flex: 1; background: none; border: 0; border-radius: 0; padding: 11px 0; color: var(--dim);
+    letter-spacing: .06em; text-transform: uppercase; font-size: 12px; border-bottom: 2px solid transparent; }
+  #tabs button.on { color: var(--hi); border-bottom-color: var(--acc); }
+  .tab { display: none; padding: 14px 16px; overflow-y: auto; flex: 1; }
+  .tab.on { display: block; }
+  h2 { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--acc); margin: 16px 0 8px; }
+  .tab > h2:first-child { margin-top: 0; }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+  .grow { flex: 1; }
+  .msg { color: var(--dim); font-size: 12px; margin-top: 6px; word-break: break-word; min-height: 17px; }
+  .busy { color: var(--warn); font-size: 12px; }
+  .state { font-size: 15px; color: var(--hi); font-weight: 600; }
+  .check { display: flex; justify-content: space-between; font-size: 12px; padding: 1px 0; }
+  .check i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px;
+    background: var(--bad); vertical-align: 1px; }
+  .check.ok i { background: var(--ok); }
+  .check span:last-child { color: var(--dim); }
+  .badge { font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px; letter-spacing: .05em;
+    background: #5a2323; color: #ffb3b3; margin-left: 6px; }
+  .badge.ok { background: #1f4a2f; color: #a8f0c0; }
+  .map { padding: 7px 9px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; border: 1px solid transparent; }
+  .map:hover { background: #182131; }
+  .map.sel { border-color: #5b8de0; background: #182131; }
+  .map small { color: var(--dim); display: block; }
+
+  /* --- Wegpunkt-Tabelle --- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { color: var(--dim); font-weight: 500; text-align: left; padding: 3px 2px; font-size: 11px; }
+  td { padding: 2px 2px; }
+  tr.wp.sel td { background: #1c2a44; }
+  tr.wp.act td:first-child { color: var(--warn); }
+  tr.wp td:first-child { width: 22px; text-align: center; color: var(--wp); cursor: pointer; font-weight: 700; }
+  td input[type=number] { width: 50px; padding: 2px 4px; }
+  td.act { white-space: nowrap; text-align: right; }
+  .empty { color: var(--dim); font-size: 12px; padding: 6px 2px; }
+  .progress { height: 6px; background: #182131; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress div { height: 100%; background: var(--acc); width: 0; transition: width .3s; }
+  .reason { font-size: 12px; color: var(--warn); margin-top: 6px; }
+  .note { font-size: 11px; color: var(--dim); margin-top: 6px; }
+  .pgrid { display: grid; grid-template-columns: 1fr 78px 22px; gap: 3px 8px; align-items: center; font-size: 12px; }
+  .pgrid h3 { grid-column: 1 / -1; font-size: 11px; font-weight: 600; color: var(--dim); margin-top: 8px; }
+  .pgrid select, .pgrid input { width: 78px; padding: 2px 5px; }
+  .pgrid input[type=checkbox] { width: auto; justify-self: start; }
+  .pgrid .u { color: var(--dim); }
+  .pgrid.box { grid-template-columns: 22px 1fr 1fr; }
+  .pgrid.box input { width: 100%; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin: 0 4px 0 8px; vertical-align: 0; }
 </style>
 </head>
 <body>
@@ -44,115 +119,302 @@
 
 <div id="hud" class="panel">
   <h1><span id="dot"></span>Marvin</h1>
-  <div class="row"><span>Modus</span><b id="mode">—</b></div>
-  <div class="row"><span>Armed</span><b id="armed">—</b></div>
-  <div class="row"><span>Batterie</span><b id="batt">—</b></div>
-  <div class="row"><span>Position</span><b id="pos">—</b></div>
-  <div class="row"><span>Punkte</span><b id="npts">0</b></div>
+  <div class="kv"><span>Flugmodus</span><b id="fmode">—</b></div>
+  <div class="kv"><span>Armed</span><b id="armed">—</b></div>
+  <div class="kv"><span>Batterie</span><b id="batt">—</b></div>
+  <div class="kv"><span>Position</span><b id="pos">—</b></div>
+  <div class="kv"><span>OctoMap-Voxel</span><b id="npts">0</b></div>
+</div>
+<div id="minimapFrame"><span>N</span></div>
+
+<div id="side" class="panel">
+  <div id="failsafe"><b>Failsafe-Halt aktiv</b><span id="failsafeMsg"></span>
+    <div class="btns"><button id="releaseBtn">Halt aufheben</button><button id="fsLandBtn" class="danger">Jetzt landen</button></div>
+  </div>
+  <div id="tabs">
+    <button data-tab="ops" class="on">Betrieb</button>
+    <button data-tab="mission">Mission</button>
+    <button data-tab="scan">Scan</button>
+    <button data-tab="maps">Karten</button>
+    <button data-tab="log">Log</button>
+  </div>
+
+  <!-- ================= Betrieb ================= -->
+  <div id="tab-ops" class="tab on">
+    <h2>Status</h2>
+    <div class="state" id="stmode">—</div>
+    <div class="busy" id="busy"></div>
+    <div class="msg" id="msg"></div>
+
+    <h2>Auf Karte fliegen</h2>
+    <div class="btns">
+      <select id="flyMap" class="grow"></select>
+      <button id="flyBtn" class="go">Starten</button>
+    </div>
+    <div class="btns">
+      <button id="stopBtn" class="danger">Stack stoppen</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <h2>Steuerung</h2>
+    <div class="btns">
+      <button id="takeoffBtn" class="go" title="Höhe = Regler unten; in der Luft: Höhe ändern">Abheben</button>
+      <button id="gotoBtn" title="Klick in die Karte (Höhe = Regler unten), auch Doppelklick">Ziel anfliegen</button>
+      <button id="holdBtn">Halten</button>
+      <button id="landBtn" class="danger">Landen</button>
+    </div>
+    <div class="btns">
+      <button id="armBtn">Armen</button>
+      <button id="disarmBtn" class="danger">Disarmen</button>
+    </div>
+    <div class="msg" id="ctlState"></div>
+
+    <h2>Neue Karte aufnehmen</h2>
+    <div class="btns">
+      <input id="newName" type="text" placeholder="Name der neuen Karte" class="grow" style="width:auto">
+      <button id="mapBtn">Aufnahme starten</button>
+    </div>
+    <div class="btns"><button id="finishBtn" class="go">Aufnahme beenden &amp; Karte erstellen</button></div>
+
+    <h2>Flugbereitschaft <span id="ready" class="badge">NICHT BEREIT</span></h2>
+    <div id="checks"></div>
+
+    <h2>Relokalisieren</h2>
+    <div class="btns"><button id="relocBtn">Startpose setzen</button></div>
+    <div class="note">Klick = wo die Drohne steht, zweiter Klick = Blickrichtung.</div>
+  </div>
+
+  <!-- ================= Mission ================= -->
+  <div id="tab-mission" class="tab">
+    <h2>Mission <span id="missionMap" style="color:var(--dim);text-transform:none;letter-spacing:0"></span></h2>
+    <div class="btns">
+      <select id="missionSel" class="grow"></select>
+      <button id="newMissionBtn">Neu</button>
+      <button id="delMissionBtn" class="danger">Löschen</button>
+    </div>
+    <div class="btns">
+      <input id="missionName" type="text" placeholder="Missionsname" class="grow" style="width:auto">
+      <button id="saveMissionBtn">Speichern</button>
+    </div>
+
+    <h2>Wegpunkte</h2>
+    <table>
+      <thead><tr><th>#</th><th>x</th><th>y</th><th>z</th><th title="leer = in Flugrichtung">Yaw°</th>
+        <th title="Wartezeit am Punkt">Warten s</th><th title="erst nach „Weiter“ fortsetzen">✋</th><th></th></tr></thead>
+      <tbody id="wpBody"></tbody>
+    </table>
+    <div class="btns">
+      <button id="addClickBtn">+ per Klick in die Karte</button>
+      <button id="addHereBtn">+ Drohnenposition</button>
+    </div>
+    <div class="btns"><label><input type="checkbox" id="landEnd" checked> am Ende landen</label></div>
+    <div class="note">Yaw leer = Blick in Flugrichtung · ✋ = am Punkt auf „Weiter“ warten · ⌖ = Position per Klick
+      neu setzen · Nummer anklicken = in 3D markieren</div>
+
+    <h2>Ausführung</h2>
+    <div class="btns">
+      <button id="startMissionBtn" class="go">▶ Mission starten</button>
+      <button id="continueBtn" class="go">Weiter ▶</button>
+      <button id="pauseMissionBtn">Pause</button>
+      <button id="abortMissionBtn" class="danger">Abbrechen</button>
+    </div>
+    <div class="reason" id="startReason"></div>
+    <div class="progress"><div id="progBar"></div></div>
+    <div class="msg" id="missionState"></div>
+  </div>
+
+  <!-- ================= Scan (View Planning) ================= -->
+  <div id="tab-scan" class="tab">
+    <h2>Objekt-Box <span id="scanMap" style="color:var(--dim);text-transform:none;letter-spacing:0"></span></h2>
+    <div class="pgrid box">
+      <span></span><span class="u">min</span><span class="u">max</span>
+      <span>x</span><input type="number" step="0.1" id="bx0"><input type="number" step="0.1" id="bX0">
+      <span>y</span><input type="number" step="0.1" id="bx1"><input type="number" step="0.1" id="bX1">
+      <span>z</span><input type="number" step="0.1" id="bx2" value="0"><input type="number" step="0.1" id="bX2" value="3">
+    </div>
+    <div class="btns"><button id="scanBtn">Grundfläche in der Karte aufziehen</button></div>
+    <div class="note">Zwei Klicks = Ecken der Grundfläche, Höhe in der Tabelle. Boden nicht einschließen.
+      Geplant wird auf Karte + Live-Lidar (beim Fliegen auf dieser Karte).</div>
+
+    <h2>Einstellungen</h2>
+    <div id="vpParams" class="pgrid"></div>
+    <div class="btns">
+      <button id="planBtn" class="go">▶ Planen</button>
+      <button id="vpResetBtn">Standardwerte</button>
+      <span class="busy" id="vpBusy"></span>
+    </div>
+
+    <h2>Ergebnis</h2>
+    <div class="btns">
+      <select id="scanSel" class="grow"></select>
+      <button id="delScanBtn" class="danger">Löschen</button>
+    </div>
+    <div id="vpStats" class="msg"></div>
+    <div class="btns">
+      <label><input type="checkbox" id="vpFacets" checked> Abdeckung</label>
+      <label><input type="checkbox" id="vpFrusta" checked> Sichtfelder</label>
+      <label><input type="checkbox" id="vpPts"> Punkte</label>
+    </div>
+    <div class="note legend"><i style="background:#4cd97b;margin-left:0"></i>erfasst<i style="background:#ffa040"></i>erfassbar, aber
+      nicht erfasst<i style="background:#e86060"></i>von keiner Pose erfassbar · Posen außerhalb 0,3–3 m rot</div>
+    <div class="btns">
+      <label>Warten je Pose <input id="vpHold" type="number" value="2" step="0.5" min="0" style="width:52px"> s</label>
+      <button id="vpToMissionBtn" class="go">Als Mission übernehmen</button>
+    </div>
+    <div class="note">Übernimmt nur erreichbare Posen in den Missionseditor (dort prüfen und speichern).
+      Box und Einstellungen der gewählten Planung werden oben übernommen — anpassen und neu planen.</div>
+  </div>
+
+  <!-- ================= Karten ================= -->
+  <div id="tab-maps" class="tab">
+    <h2>Gespeicherte Karten</h2>
+    <div id="maps"></div>
+    <div class="btns">
+      <button id="viewBtn">Ansehen</button>
+      <button id="originBtn">Nullpunkt setzen</button>
+      <button id="cropBtn">Ausschnitt</button>
+      <button id="clearCropBtn">Ausschnitte löschen</button>
+      <button id="delBtn" class="danger">Löschen</button>
+    </div>
+    <div class="note">Nullpunkt/Ausschnitt ändern die Karte (Neuberechnung aus den Keyframes, Rohdaten bleiben).
+      Löschen verschiebt nach maps/.papierkorb.</div>
+  </div>
+
+  <!-- ================= Log ================= -->
+  <div id="tab-log" class="tab">
+    <h2>Stack-Log</h2>
+    <pre id="stackLog" style="margin:0; font-size:10.5px; white-space:pre-wrap; word-break:break-all"></pre>
+  </div>
 </div>
 
 <div id="bar" class="panel">
   <button id="followBtn">Folgen</button>
-  <button id="clearBtn">Karte leeren</button>
-  <label>Ziel-Höhe <input id="goalZ" type="range" min="0.5" max="10" step="0.5" value="1.5">
+  <button id="camBtn">Kamera</button>
+  <label>Höhe für Ziel/Wegpunkt <input id="goalZ" type="range" min="0.5" max="3" step="0.25" value="1.5">
     <b id="goalZv">1.5 m</b></label>
 </div>
+<div id="hint" class="panel"></div>
+<div id="cam" class="panel"><img id="camImg" alt="kein Kamerabild"><span>Frontkamera</span></div>
 
 <div id="pfd" class="panel">
   <div class="col">
     <div class="v" id="spd">0.0</div><div class="u">m/s horizontal</div>
     <div class="v s" id="vs">— 0.0</div><div class="u">m/s vertikal</div>
   </div>
-  <canvas id="horizon" width="170" height="170"></canvas>
+  <canvas id="horizon" width="150" height="150"></canvas>
   <div class="col">
     <div class="v" id="alt">0.0</div><div class="u">m Höhe</div>
     <div class="v s" id="hdg">000°</div><div class="u" id="card">N</div>
   </div>
 </div>
 
-<div id="minimapFrame"><span>N</span></div>
-
-<div id="hint" class="panel">Doppelklick = Ziel setzen · Ziehen = drehen · Rechtsklick = schieben</div>
-
-<script src="https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js"></script>
+<script src="vendor/roslib.min.js"></script>
 <script type="importmap">
 { "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  "three": "./vendor/three.module.js",
+  "three/addons/controls/OrbitControls.js": "./vendor/controls/OrbitControls.js"
 } }
 </script>
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-// ---------- Szene (ROS ist Z-up) ----------
+const $ = id => document.getElementById(id);
+const deg = r => r * 180 / Math.PI, rad = d => d * Math.PI / 180;
+const LIVE = ['running', 'paused', 'waiting'];
+
+// ================= Tabs =================
+let curTab = 'ops';
+function showTab(name) {
+  curTab = name;
+  for (const x of document.querySelectorAll('#tabs button')) x.classList.toggle('on', x.dataset.tab === name);
+  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('on', t.id === `tab-${name}`);
+  if (typeof onTab === 'function') onTab(name);
+}
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => showTab(b.dataset.tab);
+
+// ================= Stack-Log (inkrementell, pollt immer — nur Deltas) =================
+let logOff = -1;
+setInterval(async () => {
+  try {
+    const r = await fetch(`stacklog?from=${logOff}`), txt = await r.text(), size = +r.headers.get('X-Size');
+    const pre = $('stackLog'), tab = $('tab-log');
+    const atEnd = tab.scrollTop + tab.clientHeight >= tab.scrollHeight - 30;
+    // ponytail: Neustart = Datei kuerzer als Offset; waechst der neue Log binnen 1 s darueber, fehlt sein Anfang
+    if (size < logOff || logOff < 0) pre.textContent = '';
+    pre.textContent = (pre.textContent + txt).slice(-300000);
+    logOff = size;
+    if (atEnd) tab.scrollTop = tab.scrollHeight;  // mitscrollen, ausser man liest weiter oben
+  } catch (e) { /* Supervisor weg — naechster Versuch */ }
+}, 1000);
+
+// ================= Szene (ROS: Z-up) =================
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0e14);
 scene.fog = new THREE.Fog(0x0b0e14, 60, 160);
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 500);
-camera.position.set(-12, -12, 8);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 500);
+camera.position.set(-10, -10, 7);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
-document.getElementById('view').appendChild(renderer.domElement);
+$('view').appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-
-const grid = new THREE.GridHelper(200, 100, 0x2a3550, 0x18202e);
-grid.rotation.x = Math.PI / 2; // GridHelper liegt in XZ, wir brauchen XY (Z-up)
+const grid = new THREE.GridHelper(200, 100, 0x2a3550, 0x161d2a);
+grid.rotation.x = Math.PI / 2;
 scene.add(grid);
-scene.add(new THREE.AmbientLight(0xffffff, 0.7));
-const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+scene.add(new THREE.AxesHelper(1.2)); // Karten-Nullpunkt
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x202530, 1.1));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
 sun.position.set(20, -30, 50);
 scene.add(sun);
-
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
-// ---------- Akkumulierte Punktwolke ----------
-// ponytail: Voxel-Dedup im Browser statt Octomap-Dekodierung; reicht bis ~2M Punkte.
-const MAX_PTS = 2_000_000, VOX = 0.05, Z0 = -0.5, Z1 = 8;
-const positions = new Float32Array(MAX_PTS * 3);
-const colors = new Float32Array(MAX_PTS * 3);
-let nPts = 0;
-const seen = new Set();
-const cloudGeo = new THREE.BufferGeometry();
-cloudGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-cloudGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-cloudGeo.setDrawRange(0, 0);
-const cloud = new THREE.Points(cloudGeo,
-  new THREE.PointsMaterial({ size: 0.06, vertexColors: true }));
-cloud.frustumCulled = false;
-scene.add(cloud);
-
-const tmpC = new THREE.Color();
-function addPoint(x, y, z) {
-  if (nPts >= MAX_PTS || !isFinite(x) || !isFinite(y) || !isFinite(z)) return;
-  if (Math.abs(x) > 1500 || Math.abs(y) > 1500 || Math.abs(z) > 1500) return;
-  const OFF = 1 << 15, SPAN = 1 << 16;
-  const key = ((Math.round(x / VOX) + OFF) * SPAN + (Math.round(y / VOX) + OFF)) * SPAN
-    + (Math.round(z / VOX) + OFF);
-  if (seen.has(key)) return;
-  seen.add(key);
-  positions.set([x, y, z], nPts * 3);
-  const t = Math.min(1, Math.max(0, (z - Z0) / (Z1 - Z0)));
-  tmpC.setHSL(0.62 - 0.62 * t, 0.85, 0.35 + 0.3 * t);
-  colors.set([tmpC.r, tmpC.g, tmpC.b], nPts * 3);
-  nPts++;
+function heightColor(z, z0, z1, out, i, sat = 0.85, light = 0.35) {
+  const t = Math.min(1, Math.max(0, (z - z0) / (z1 - z0)));
+  const c = new THREE.Color().setHSL(0.62 - 0.62 * t, sat, light + 0.3 * t);
+  out[i] = c.r; out[i + 1] = c.g; out[i + 2] = c.b;
 }
-function flushCloud() {
-  cloudGeo.setDrawRange(0, nPts);
-  cloudGeo.attributes.position.needsUpdate = true;
-  cloudGeo.attributes.color.needsUpdate = true;
-  document.getElementById('npts').textContent = nPts.toLocaleString('de-DE');
+function makeLine(color, opacity = 1) {
+  const l = new THREE.Line(new THREE.BufferGeometry(),
+    new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity }));
+  l.frustumCulled = false;
+  scene.add(l);
+  return l;
 }
 
-// PointCloud2 → Punkte (rosbridge liefert data als Uint8Array (cbor) oder base64-String)
-function parseCloud(msg) {
+// ---------- gespeicherte Karte (preview.bin, map-Frame) ----------
+const mapGeo = new THREE.BufferGeometry();
+const mapCloud = new THREE.Points(mapGeo, new THREE.PointsMaterial({ size: 0.07, vertexColors: true,
+  transparent: true, opacity: 0.5 }));
+mapCloud.frustumCulled = false;
+scene.add(mapCloud);
+let shownMap = '';
+async function showMap(name) {
+  if (!name) { mapGeo.setDrawRange(0, 0); shownMap = ''; return; }
+  shownMap = name; // sofort setzen, sonst laedt jeder Status-Tick erneut
+  const r = await fetch(`maps/${encodeURIComponent(name)}/preview.bin?t=${Date.now()}`);
+  if (!r.ok) { flash(`Keine Vorschau für ${name} — erst optimieren`); return; }
+  const pos = new Float32Array(await r.arrayBuffer());
+  const col = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) heightColor(pos[i + 2], -0.5, 4, col, i, 0.2, 0.28);
+  mapGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  mapGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  mapGeo.setDrawRange(0, pos.length / 3);
+  showCrops();
+}
+
+// ---------- OctoMap des Planers (/octomap_points, map-Frame) ----------
+const octGeo = new THREE.BufferGeometry();
+const octCloud = new THREE.Points(octGeo, new THREE.PointsMaterial({ size: 0.14, vertexColors: true }));
+octCloud.frustumCulled = false;
+scene.add(octCloud);
+function decodeCloud(msg) { // PointCloud2 -> Float32 xyz (rosbridge: Uint8Array (cbor) oder base64)
   let data = msg.data;
   if (typeof data === 'string') {
     const bin = atob(data);
@@ -161,266 +423,835 @@ function parseCloud(msg) {
   }
   const off = {};
   for (const f of msg.fields) off[f.name] = f.offset;
-  if (off.x === undefined) return;
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const step = msg.point_step, n = Math.floor(data.byteLength / step);
+  const step = msg.point_step, n = Math.floor(data.byteLength / step), out = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
     const o = i * step;
-    addPoint(dv.getFloat32(o + off.x, true), dv.getFloat32(o + off.y, true),
-      dv.getFloat32(o + off.z, true));
+    out[i * 3] = dv.getFloat32(o + off.x, true);
+    out[i * 3 + 1] = dv.getFloat32(o + off.y, true);
+    out[i * 3 + 2] = dv.getFloat32(o + off.z, true);
   }
-  flushCloud();
+  return out;
 }
-
-// Selbsttest des Parsers mit einer synthetischen 2-Punkte-Wolke
+function showOctomap(msg) {
+  const pos = decodeCloud(msg), col = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) heightColor(pos[i + 2], -0.5, 4, col, i);
+  octGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  octGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  octGeo.setDrawRange(0, pos.length / 3);
+  $('npts').textContent = (pos.length / 3).toLocaleString('de-DE');
+}
 (function selfTest() {
   const buf = new ArrayBuffer(32), dv = new DataView(buf);
-  [[1, 2, 3], [4, 5, 6]].forEach((p, i) =>
-    p.forEach((v, j) => dv.setFloat32(i * 16 + j * 4, v, true)));
-  parseCloud({ fields: [{ name: 'x', offset: 0 }, { name: 'y', offset: 4 },
-    { name: 'z', offset: 8 }], point_step: 16, data: new Uint8Array(buf) });
-  console.assert(nPts === 2 && positions[3] === 4, 'PointCloud2-Parser defekt');
-  nPts = 0; seen.clear(); flushCloud();
+  [[1, 2, 3], [4, 5, 6]].forEach((p, i) => p.forEach((v, j) => dv.setFloat32(i * 16 + j * 4, v, true)));
+  const r = decodeCloud({ fields: [{ name: 'x', offset: 0 }, { name: 'y', offset: 4 }, { name: 'z', offset: 8 }],
+    point_step: 16, data: new Uint8Array(buf) });
+  console.assert(r.length === 6 && r[3] === 4 && r[5] === 6, 'PointCloud2-Decoder defekt');
 })();
 
-// ---------- Drohne ----------
+// ================= Drohnenmodell (X-Rahmen ~0.6 m, Nase = +x) =================
+const props = [];
 function makeDrone() {
   const g = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x35507e, roughness: 0.5 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.12), bodyMat);
-  g.add(body);
-  const armMat = new THREE.MeshStandardMaterial({ color: 0x1c2636 });
-  const rotorMat = new THREE.MeshBasicMaterial({ color: 0x7fb3ff, transparent: true, opacity: 0.35 });
-  for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34), armMat);
-    arm.rotation.z = Math.atan2(dy, dx) + Math.PI / 2;
-    arm.rotation.x = Math.PI / 2;
-    arm.position.set(dx * 0.14, dy * 0.14, 0.02);
-    g.add(arm);
-    const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.01), rotorMat);
-    rotor.rotation.x = Math.PI / 2;
-    rotor.position.set(dx * 0.26, dy * 0.26, 0.06);
-    g.add(rotor);
+  const std = (color, roughness, metalness, extra = {}) =>
+    new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
+  const carbon = std(0x1b1f27, 0.55, 0.3), shell = std(0xdfe6f0, 0.35, 0.15);
+  const accent = std(0x2f6fe0, 0.4, 0.3), metal = std(0x9aa5b5, 0.3, 0.85);
+  const add = (mesh, x = 0, y = 0, z = 0) => { mesh.position.set(x, y, z); g.add(mesh); return mesh; };
+  // Rumpf: Grundplatte + gerundete Haube mit Zierstreifen
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.18, 0.025), carbon));
+  const hood = add(new THREE.Mesh(new THREE.SphereGeometry(0.1, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), shell), 0, 0, 0.012);
+  hood.rotation.x = Math.PI / 2;
+  hood.scale.set(1.35, 0.55, 0.95); // nach Rotation: y-Skala = Hoehe
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.015, 0.004), accent), 0.02, 0, 0.066);
+  // Arme, Motoren, Propeller (vorn hell, hinten dunkel)
+  for (const [dx, dy, cw] of [[1, 1, 1], [1, -1, -1], [-1, 1, -1], [-1, -1, 1]]) {
+    const a = Math.atan2(dy, dx), L = 0.3, mx = Math.cos(a) * L, my = Math.sin(a) * L;
+    const arm = add(new THREE.Mesh(new THREE.BoxGeometry(L, 0.028, 0.018), carbon), mx / 2, my / 2, 0);
+    arm.rotation.z = a;
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.04, 20), metal), mx, my, 0.025).rotation.x = Math.PI / 2;
+    const prop = new THREE.Group();
+    prop.position.set(mx, my, 0.052);
+    const bladeMat = std(dx > 0 ? 0xe8edf5 : 0x2a2f38, 0.5, 0);
+    for (const r of [0, Math.PI]) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.018, 0.003), bladeMat);
+      blade.position.set(Math.cos(r) * 0.065, Math.sin(r) * 0.065, 0);
+      blade.rotation.set(0.18 * cw, 0, r);
+      prop.add(blade);
+    }
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.13, 32),
+      new THREE.MeshBasicMaterial({ color: 0x8fb8ff, transparent: true, opacity: 0.12, side: THREE.DoubleSide }));
+    prop.add(disc);
+    prop.userData.cw = cw;
+    props.push(prop);
+    g.add(prop);
   }
-  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.14),
-    new THREE.MeshBasicMaterial({ color: 0xff5566 }));
-  nose.rotation.z = -Math.PI / 2;
-  nose.position.x = 0.2;
-  g.add(nose);
+  // Lidar (MID360) oben vorn, um ~30° nach vorn gekippt
+  const lidarMount = new THREE.Group();
+  lidarMount.position.set(0.1, 0, 0.075);
+  lidarMount.rotation.y = 0.52;
+  const lidar = new THREE.Mesh(new THREE.CylinderGeometry(0.033, 0.033, 0.06, 28), std(0x2b2f36, 0.3, 0.4));
+  lidar.rotation.x = Math.PI / 2;
+  lidarMount.add(lidar);
+  const win = new THREE.Mesh(new THREE.CylinderGeometry(0.0335, 0.0335, 0.02, 28),
+    std(0x3a6fb0, 0.1, 0.6, { emissive: 0x0d2240 }));
+  win.rotation.x = Math.PI / 2;
+  win.position.z = 0.012;
+  lidarMount.add(win);
+  g.add(lidarMount);
+  // Tiefenkamera vorn unten
+  add(new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.09, 0.025), carbon), 0.15, 0, -0.02);
+  for (const y of [-0.028, 0.028])
+    add(new THREE.Mesh(new THREE.CircleGeometry(0.008, 16), new THREE.MeshBasicMaterial({ color: 0x4a86ff })),
+      0.1631, y, -0.02).rotation.y = Math.PI / 2;
+  // Landegestell: zwei Kufen mit je zwei Beinen
+  for (const y of [-0.08, 0.08]) {
+    add(new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.26, 10), carbon), 0, y, -0.12).rotation.z = Math.PI / 2;
+    for (const x of [-0.06, 0.06])
+      add(new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.11, 8), carbon), x, y, -0.065).rotation.x = Math.PI / 2;
+  }
+  // Positionslichter: vorn links rot, vorn rechts gruen, hinten weiss
+  for (const [c, x, y] of [[0xff3344, 0.2, 0.2], [0x33ff77, 0.2, -0.2], [0xffffff, -0.2, 0.2], [0xffffff, -0.2, -0.2]])
+    add(new THREE.Mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshBasicMaterial({ color: c })), x, y, -0.01);
   return g;
 }
 const drone = makeDrone();
+drone.visible = false;
 scene.add(drone);
-
-// Minimap-Pfeil: nur auf Layer 1 (sieht nur die Minimap-Kamera)
-const mapMarker = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3, 3),
-  new THREE.MeshBasicMaterial({ color: 0x4cd97b }));
-mapMarker.rotation.z = -Math.PI / 2; // Spitze in Flugrichtung (+x)
+// Bodenring + Lot als Hoehenbezug
+const shadow = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.33, 40),
+  new THREE.MeshBasicMaterial({ color: 0x6fa8ff, transparent: true, opacity: 0.35 }));
+scene.add(shadow);
+const shadowPole = makeLine(0x6fa8ff, 0.25);
+// Minimap: Marker nur auf Layer 1 (Hauptkamera sieht ihn nicht)
+const mapMarker = new THREE.Mesh(new THREE.ConeGeometry(1.1, 3, 3), new THREE.MeshBasicMaterial({ color: 0x4cd97b }));
+mapMarker.rotation.z = -Math.PI / 2;
 mapMarker.layers.set(1);
 drone.add(mapMarker);
-
 const mapCam = new THREE.OrthographicCamera(-18, 18, 18, -18, 1, 200);
-mapCam.up.set(0, 1, 0); // Norden oben
+mapCam.up.set(0, 1, 0);
 mapCam.layers.enable(1);
 
-// Flugspur
-const trail = makeLine(0x35c8e0);
-trail.material.transparent = true;
-trail.material.opacity = 0.7;
+const trail = makeLine(0x35c8e0, 0.6);
 const trailPts = [];
-
-// Geschwindigkeit: Odometrie-Pose differenzieren (FAST-LIO füllt twist nicht zuverlässig)
-let lastOdomT = null;
-const prevP = new THREE.Vector3(), vSm = new THREE.Vector3(), tmpV = new THREE.Vector3();
-
-// ---------- Pfade + Zielmarker ----------
-function makeLine(color) {
-  const line = new THREE.Line(new THREE.BufferGeometry(),
-    new THREE.LineBasicMaterial({ color }));
-  line.frustumCulled = false;
-  scene.add(line);
-  return line;
-}
 const globalPath = makeLine(0x4cd97b);
 const localPath = makeLine(0xffd24c);
-function setPath(line, msg) {
-  line.geometry.setFromPoints(msg.poses.map(p =>
-    new THREE.Vector3(p.pose.position.x, p.pose.position.y, p.pose.position.z)));
-}
+const setPath = (line, msg) => line.geometry.setFromPoints(
+  msg.poses.map(p => new THREE.Vector3(p.pose.position.x, p.pose.position.y, p.pose.position.z)));
+let lastPoseT = null, armed = false;
+const prevP = new THREE.Vector3(), vSm = new THREE.Vector3(), tmpV = new THREE.Vector3();
 
-const goalMarker = new THREE.Group();
-const ring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04),
-  new THREE.MeshBasicMaterial({ color: 0xe055c8 }));
-goalMarker.add(ring);
-const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 20),
-  new THREE.MeshBasicMaterial({ color: 0xe055c8, transparent: true, opacity: 0.25 }));
-pole.rotation.x = Math.PI / 2;
-goalMarker.add(pole);
+const goalMarker = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.04, 8, 32), new THREE.MeshBasicMaterial({ color: 0xe055c8 }));
 goalMarker.visible = false;
 scene.add(goalMarker);
 
-// ---------- ROS-Verbindung ----------
-const wsUrl = new URLSearchParams(location.search).get('ws')
-  || `ws://${location.hostname || 'localhost'}:9090`;
-const $ = id => document.getElementById(id);
-let goalTopic = null;
+const toolArrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(), 1.5, 0xffd24c, 0.4, 0.25);
+toolArrow.visible = false;
+scene.add(toolArrow);
+const toolBox = new THREE.Box3Helper(new THREE.Box3(), 0xff8844);
+toolBox.visible = false;
+scene.add(toolBox);
+const cropBoxes = new THREE.Group();
+scene.add(cropBoxes);
 
+// ================= ROS =================
+const wsUrl = new URLSearchParams(location.search).get('ws') || `ws://${location.hostname || 'localhost'}:9090`;
+let cmdSrv = null, status = null, connected = false;
 function connect() {
   const ros = new ROSLIB.Ros({ url: wsUrl });
-  ros.on('connection', () => $('dot').classList.add('ok'));
-  ros.on('close', () => { $('dot').classList.remove('ok'); setTimeout(connect, 2000); });
+  ros.on('connection', () => { connected = true; $('dot').classList.add('ok'); refreshMaps(); });
+  ros.on('close', () => { connected = false; $('dot').classList.remove('ok'); setTimeout(connect, 2000); });
   ros.on('error', () => {});
-  const sub = (name, messageType, cb, opts = {}) =>
-    new ROSLIB.Topic({ ros, name, messageType, ...opts }).subscribe(cb);
-
-  sub('/cloud_registered', 'sensor_msgs/msg/PointCloud2', parseCloud,
-    { compression: 'cbor', throttle_rate: 400, queue_length: 1 });
-  sub('/Odometry', 'nav_msgs/msg/Odometry', m => {
-    const p = m.pose.pose.position, q = m.pose.pose.orientation;
-    drone.position.set(p.x, p.y, p.z);
-    drone.quaternion.set(q.x, q.y, q.z, q.w);
-    $('pos').textContent = `${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}`;
-    const t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9;
-    if (lastOdomT !== null) {
-      const dt = t - lastOdomT;
-      if (dt > 1e-4 && dt < 1) {
-        tmpV.set((p.x - prevP.x) / dt, (p.y - prevP.y) / dt, (p.z - prevP.z) / dt);
-        vSm.lerp(tmpV, 0.3);
-      }
-    }
-    lastOdomT = t;
-    prevP.set(p.x, p.y, p.z);
-    const lastTrail = trailPts[trailPts.length - 1];
-    if (!lastTrail || lastTrail.distanceToSquared(drone.position) > 0.01) {
-      trailPts.push(drone.position.clone());
-      if (trailPts.length > 4000) trailPts.shift();
-      trail.geometry.setFromPoints(trailPts);
-    }
-  }, { throttle_rate: 100 });
+  const sub = (name, type, cb, opts = {}) => new ROSLIB.Topic({ ros, name, messageType: type, ...opts }).subscribe(cb);
+  sub('/marvin/status', 'std_msgs/msg/String', m => onStatus(JSON.parse(m.data)));
+  sub('/marvin/pose', 'geometry_msgs/msg/PoseStamped', onPose);
+  sub('/octomap_points', 'sensor_msgs/msg/PointCloud2', showOctomap,
+    { compression: 'cbor', throttle_rate: 2000, queue_length: 1 });
   sub('/planned_path', 'nav_msgs/msg/Path', m => setPath(globalPath, m));
   sub('/local_planned_path', 'nav_msgs/msg/Path', m => setPath(localPath, m));
   sub('/mavros/state', 'mavros_msgs/msg/State', m => {
-    $('mode').textContent = m.mode || '—';
+    armed = m.armed;
+    $('fmode').textContent = m.mode || '—';
     $('armed').textContent = m.armed ? 'JA' : 'nein';
-    $('armed').style.color = m.armed ? '#4cd97b' : '';
+    $('armed').style.color = m.armed ? 'var(--ok)' : '';
   });
   sub('/mavros/battery', 'sensor_msgs/msg/BatteryState', m => {
     const pct = Math.round(m.percentage * 100);
     $('batt').textContent = `${pct} %`;
-    $('batt').style.color = pct > 50 ? '#4cd97b' : pct > 20 ? '#ffd24c' : '#e05555';
+    $('batt').style.color = pct > 50 ? 'var(--ok)' : pct > 20 ? 'var(--warn)' : 'var(--bad)';
   }, { throttle_rate: 2000 });
-
-  goalTopic = new ROSLIB.Topic({ ros, name: '/goal_pose',
-    messageType: 'geometry_msgs/msg/PoseStamped' });
+  cmdSrv = new ROSLIB.Service({ ros, name: '/marvin/command', serviceType: 'marvin_msgs/srv/Command' });
 }
 connect();
 
-// ---------- Interaktion ----------
-let follow = false;
-$('followBtn').onclick = () => {
-  follow = !follow;
-  $('followBtn').classList.toggle('active', follow);
+// Fehler landen immer sichtbar im aktuell offenen Tab (Betrieb: #msg, Mission: #missionState)
+let flashText = '';
+function flash(text) { flashText = text; $('msg').textContent = text; renderMissionState(); }
+function command(cmd, args = {}) {
+  return new Promise((resolve, reject) => {
+    if (!cmdSrv || !connected) { flash('Keine Verbindung zum Supervisor'); return reject(new Error('offline')); }
+    cmdSrv.callService({ request: JSON.stringify({ cmd, ...args }) }, r => {
+      if (r.success) resolve(JSON.parse(r.response || '{}'));
+      else { flash(`Fehler: ${r.response}`); reject(new Error(r.response)); }
+    }, e => { flash(`Fehler: ${e}`); reject(e); });
+  });
+}
+
+function onPose(m) {
+  const p = m.pose.position, q = m.pose.orientation;
+  drone.visible = true;
+  drone.position.set(p.x, p.y, p.z);
+  drone.quaternion.set(q.x, q.y, q.z, q.w);
+  $('pos').textContent = `${p.x.toFixed(1)}  ${p.y.toFixed(1)}  ${p.z.toFixed(1)}`;
+  const t = m.header.stamp.sec + m.header.stamp.nanosec * 1e-9;
+  if (lastPoseT !== null) {
+    const dt = t - lastPoseT;
+    if (dt > 1e-4 && dt < 1) { tmpV.set((p.x - prevP.x) / dt, (p.y - prevP.y) / dt, (p.z - prevP.z) / dt); vSm.lerp(tmpV, 0.3); }
+  }
+  lastPoseT = t;
+  prevP.set(p.x, p.y, p.z);
+  const last = trailPts[trailPts.length - 1];
+  if (!last || last.distanceToSquared(drone.position) > 0.01) {
+    trailPts.push(drone.position.clone());
+    if (trailPts.length > 4000) trailPts.shift();
+    trail.geometry.setFromPoints(trailPts);
+  }
+}
+
+// ================= Status / Betrieb =================
+const MODE_TXT = { idle: 'Stack aus', starting: 'startet …', mapping: 'Karte wird aufgenommen',
+  localization: 'Fliegt auf Karte', stopping: 'stoppt …', optimizing: 'optimiert Karte …' };
+let lastStatusMsg = '';
+function onStatus(s) {
+  $('failsafe').style.display = s.hold ? 'block' : 'none';
+  if (s.hold) $('failsafeMsg').textContent = s.message;
+  const prevMode = status && status.mode;
+  status = s;
+  $('stmode').textContent = (MODE_TXT[s.mode] || s.mode) + (s.map ? ` · ${s.map}` : '');
+  $('busy').textContent = s.busy || '';
+  if (s.message && s.message !== lastStatusMsg) { $('msg').textContent = lastStatusMsg = s.message; }
+  $('checks').innerHTML = s.checks.map(c =>
+    `<div class="check ${c.ok ? 'ok' : ''}"><span><i></i>${c.name}</span><span>${c.detail}</span></div>`).join('');
+  $('ready').textContent = s.ready ? 'BEREIT' : 'NICHT BEREIT';
+  $('ready').classList.toggle('ok', s.ready);
+  const idle = s.mode === 'idle', running = s.mode === 'mapping' || s.mode === 'localization';
+  $('flyBtn').disabled = !idle || !$('flyMap').value;
+  $('mapBtn').disabled = !idle;
+  $('stopBtn').disabled = !running && s.mode !== 'starting';
+  $('resetBtn').disabled = s.mode !== 'localization';
+  const live = !!s.mission && LIVE.includes(s.mission.state), loc = s.mode === 'localization';
+  $('landBtn').disabled = $('holdBtn').disabled = $('disarmBtn').disabled = !armed;
+  $('armBtn').disabled = armed || !loc;
+  $('takeoffBtn').disabled = !loc || live;
+  $('gotoBtn').disabled = !armed || live;
+  $('ctlState').textContent = live ? `${s.mission.name}: ${s.mission.text}` : '';
+  $('finishBtn').style.display = s.mode === 'mapping' ? '' : 'none';
+  $('relocBtn').disabled = s.mode !== 'localization';
+  // Beim Fliegen auf einer Karte: diese anzeigen und fuer Missionen verwenden (nur beim Wechsel)
+  if (s.mode === 'localization' && s.map && prevMode !== 'localization') {
+    if (shownMap !== s.map) showMap(s.map);
+    selectMap(s.map);
+  }
+  if (prevMode !== s.mode) refreshMaps();
+  if (camOn) updateCam();
+  // neue View-Planung fertig -> Vorschau laden (einmal je Planung)
+  const sc = s.scan;
+  if (lastScan === null) lastScan = sc ? sc.name : ''; // Seite neu geladen: nichts automatisch oeffnen
+  if (sc && sc.name !== lastScan) {
+    lastScan = sc.name;
+    $('vpStats').textContent = sc.text;
+    if (sc.ok && sc.map === selectedMap) refreshScans(sc.name);
+  }
+  $('vpBusy').textContent = s.busy || '';
+  $('planBtn').disabled = !!s.busy;
+  renderMissionState();
+}
+let lastScan = null;
+
+// ================= Karten =================
+let maps = [], selectedMap = '';
+const mapInfo = name => maps.find(m => m.name === name);
+async function refreshMaps() {
+  try { maps = (await command('list_maps')).maps; } catch { return; }
+  if (!selectedMap && maps.length) selectMap(maps[0].name);
+  $('maps').innerHTML = maps.map(m => `<div class="map ${m.name === selectedMap ? 'sel' : ''}" data-n="${m.name}">
+      <b>${m.name}</b><small>${m.ready ? 'bereit' : 'nicht optimiert'}${m.created ? ' · ' + m.created : ''}${
+      m.crop.length ? ` · ${m.crop.length} Ausschnitt(e)` : ''}</small></div>`).join('')
+    || '<div class="empty">Noch keine Karten — im Tab „Betrieb“ eine Aufnahme starten.</div>';
+  for (const el of document.querySelectorAll('.map')) el.onclick = () => selectMap(el.dataset.n);
+  const cur = $('flyMap').value || selectedMap;
+  $('flyMap').innerHTML = maps.filter(m => m.ready).map(m => `<option ${m.name === cur ? 'selected' : ''}>${m.name}</option>`).join('');
+  showCrops();
+  if (status) $('flyBtn').disabled = status.mode !== 'idle' || !$('flyMap').value;
+}
+// Kartenwechsel wechselt auch die Missionsliste — ungespeicherte Wegpunkte nur nach Rueckfrage verwerfen
+function selectMap(name) {
+  if (name === selectedMap) return;
+  if (editor.wps.length && editor.dirty && !confirm(`Karte „${name}“ wählen und ungespeicherte Mission verwerfen?`)) return;
+  if (selectedMap) loadEditor(null);
+  selectedMap = name;
+  for (const el of document.querySelectorAll('.map')) el.classList.toggle('sel', el.dataset.n === name);
+  $('missionMap').textContent = name ? `· Karte ${name}` : '';
+  $('scanMap').textContent = name ? `· Karte ${name}` : '';
+  refreshMissions();
+  refreshScans();
+  showCrops();
+}
+function showCrops() {
+  cropBoxes.clear();
+  const m = mapInfo(selectedMap);
+  if (!m || shownMap !== m.name) return;
+  for (const c of m.crop) cropBoxes.add(new THREE.Box3Helper(
+    new THREE.Box3(new THREE.Vector3(...c.min), new THREE.Vector3(...c.max)), 0xff8844));
+}
+const needMap = () => { if (!selectedMap) { flash('Erst eine Karte auswählen'); return false; } return true; };
+
+$('flyBtn').onclick = () => {
+  const map = $('flyMap').value;
+  // Startpose = Startplatz der Kartierung (Supervisor); steht die Drohne woanders: danach „Startpose setzen“
+  command('start_localization', { map }).then(() => { trailPts.length = 0; selectMap(map); });
 };
-$('clearBtn').onclick = () => { nPts = 0; seen.clear(); flushCloud(); };
-$('goalZ').oninput = () => $('goalZv').textContent = `${$('goalZ').value} m`;
+$('mapBtn').onclick = () => {
+  const name = $('newName').value.trim().replace(/[^\w-]/g, '_');
+  if (!name) { flash('Namen für die neue Karte eingeben'); return; }
+  command('start_mapping', { name }).then(() => showMap(''));
+};
+$('finishBtn').onclick = () => { if (confirm('Aufnahme beenden, Stack stoppen und Karte optimieren?')) command('finish_mapping'); };
+$('stopBtn').onclick = () => { if (confirm('Stack stoppen? (Drohne sollte gelandet sein)')) command('stop'); };
+$('resetBtn').onclick = () => { if (confirm('Stack neu starten? (Drohne muss stillstehen)')) command('reset'); };
+$('landBtn').onclick = () => { if (confirm('Jetzt landen? (bricht eine laufende Mission ab)')) command('land'); };
+$('takeoffBtn').onclick = () => {
+  const z = parseFloat($('goalZ').value);
+  if (confirm(armed ? `Auf ${z} m Höhe gehen?` : `Abheben auf ${z} m?\n\nDie Drohne ARMT und HEBT SELBSTSTÄNDIG AB!`))
+    command('takeoff', { z });
+};
+$('gotoBtn').onclick = () => setTool(tool === 'goto' ? null : 'goto');
+$('holdBtn').onclick = () => command('hold');
+$('armBtn').onclick = () => { if (confirm('Armen? (Propeller drehen an; PX4 disarmt nach einigen s ohne Start)')) command('arm', { value: true }); };
+$('disarmBtn').onclick = () => { if (confirm('Disarmen? (PX4 verweigert das in der Luft)')) command('arm', { value: false }); };
+$('fsLandBtn').onclick = () => command('land');
+$('releaseBtn').onclick = () => { if (confirm('Failsafe-Halt aufheben? Die Drohne folgt dann wieder dem letzten Ziel.')) command('release_hold'); };
+$('viewBtn').onclick = () => { if (needMap()) showMap(selectedMap); };
+$('clearCropBtn').onclick = () => { if (needMap()) command('clear_crop', { map: selectedMap }).then(refreshMaps); };
+$('delBtn').onclick = () => {
+  if (needMap() && confirm(`Karte „${selectedMap}“ in den Papierkorb verschieben?`))
+    command('delete_map', { map: selectedMap }).then(() => { showMap(''); selectedMap = ''; refreshMaps(); });
+};
+
+// ================= Mission =================
+// Der Editor gehoert allein dem Benutzer: ersetzt nur durch Neu / Laden / Kartenwechsel
+// (mit Rueckfrage bei ungespeicherten Aenderungen) — nie durch Status-Updates.
+const editor = { wps: [], dirty: false, sel: -1 };
+let missions = [];
+const wpGroup = new THREE.Group();
+scene.add(wpGroup);
+const wpLine = makeLine(0xe055c8, 0.8);
+const newWp = p => ({ ...p, yaw_deg: null, hold: 0, confirm: false });
+function labelSprite(text, color) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const x = c.getContext('2d');
+  x.fillStyle = color; x.beginPath(); x.arc(32, 32, 28, 0, 7); x.fill();
+  x.fillStyle = '#0b0e14'; x.font = 'bold 34px Segoe UI, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(text, 32, 34);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false }));
+  s.scale.set(0.45, 0.45, 1);
+  return s;
+}
+const activeIdx = () => status && status.mission && LIVE.includes(status.mission.state) ? status.mission.index : -1;
+function draw3dWps() {
+  wpGroup.clear();
+  const act = activeIdx();
+  editor.wps.forEach((w, i) => {
+    const color = i === act ? '#ffd24c' : i === editor.sel ? '#ffffff' : '#e055c8';
+    const s = labelSprite(String(i + 1), color);
+    s.position.set(w.x, w.y, w.z + 0.35);
+    wpGroup.add(s);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), new THREE.MeshBasicMaterial({ color }));
+    ball.position.set(w.x, w.y, w.z);
+    wpGroup.add(ball);
+    wpGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(
+      [new THREE.Vector3(w.x, w.y, 0), new THREE.Vector3(w.x, w.y, w.z)]),
+    new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.3 })));
+    if (w.yaw_deg !== null && isFinite(w.yaw_deg))
+      wpGroup.add(new THREE.ArrowHelper(new THREE.Vector3(Math.cos(rad(w.yaw_deg)), Math.sin(rad(w.yaw_deg)), 0),
+        new THREE.Vector3(w.x, w.y, w.z), 0.6, 0xffffff, 0.18, 0.12));
+  });
+  wpLine.geometry.setFromPoints(editor.wps.map(w => new THREE.Vector3(w.x, w.y, w.z)));
+}
+function renderWps() {
+  const act = activeIdx();
+  const num = (i, k, v, step) => `<input type="number" step="${step}" data-i="${i}" data-k="${k}" value="${v ?? ''}">`;
+  $('wpBody').innerHTML = editor.wps.map((w, i) => `<tr class="wp ${i === editor.sel ? 'sel' : ''} ${i === act ? 'act' : ''}">
+      <td data-sel="${i}">${i + 1}</td>
+      <td>${num(i, 'x', w.x, 0.1)}</td><td>${num(i, 'y', w.y, 0.1)}</td><td>${num(i, 'z', w.z, 0.25)}</td>
+      <td>${num(i, 'yaw_deg', w.yaw_deg, 5)}</td><td>${num(i, 'hold', w.hold, 1)}</td>
+      <td><input type="checkbox" data-i="${i}" data-k="confirm" ${w.confirm ? 'checked' : ''}></td>
+      <td class="act"><button class="icon" data-up="${i}" title="nach oben">▲</button><button class="icon" data-down="${i}" title="nach unten">▼</button><button class="icon" data-move="${i}" title="Position per Klick neu setzen">⌖</button><button class="icon" data-del="${i}" title="löschen">✕</button></td>
+    </tr>`).join('') || '<tr><td colspan="8" class="empty">Keine Wegpunkte — „+ per Klick in die Karte“.</td></tr>';
+  for (const inp of $('wpBody').querySelectorAll('input')) inp.onchange = () => {
+    const w = editor.wps[+inp.dataset.i], k = inp.dataset.k;
+    if (k === 'confirm') w.confirm = inp.checked;
+    else if (k === 'yaw_deg') w.yaw_deg = inp.value === '' ? null : parseFloat(inp.value);
+    else { const v = parseFloat(inp.value); if (!isFinite(v)) return renderWps(); w[k] = k === 'hold' ? Math.max(0, v) : v; }
+    touch();
+  };
+  const on = (attr, fn) => { for (const b of $('wpBody').querySelectorAll(`[data-${attr}]`)) b.onclick = () => fn(+b.dataset[attr]); };
+  const swap = (i, j) => { if (j < 0 || j >= editor.wps.length) return; [editor.wps[i], editor.wps[j]] = [editor.wps[j], editor.wps[i]]; editor.sel = j; touch(); };
+  on('sel', i => { editor.sel = editor.sel === i ? -1 : i; renderWps(); });
+  on('up', i => swap(i, i - 1));
+  on('down', i => swap(i, i + 1));
+  on('del', i => { editor.wps.splice(i, 1); editor.sel = -1; touch(); });
+  on('move', i => { editor.sel = i; renderWps(); setTool('wpmove'); });
+  draw3dWps();
+  renderMissionState();
+}
+function touch() { editor.dirty = true; renderWps(); }
+const confirmDiscard = () => !editor.dirty || !editor.wps.length || confirm('Ungespeicherte Änderungen an der Mission verwerfen?');
+function loadEditor(m) {
+  editor.wps = m ? m.waypoints.map(w => ({ ...newWp({}), ...w })) : [];
+  editor.dirty = false;
+  editor.sel = -1;
+  $('missionName').value = m ? m.name : '';
+  $('landEnd').checked = m ? m.land_at_end !== false : true;
+  renderWps();
+}
+async function refreshMissions() {
+  if (!selectedMap) { missions = []; $('missionSel').innerHTML = ''; return; }
+  try { missions = (await command('list_missions', { map: selectedMap })).missions; } catch { return; }
+  const cur = $('missionName').value.trim();
+  $('missionSel').innerHTML = '<option value="">— gespeicherte Mission laden —</option>' +
+    missions.map(m => `<option ${m.name === cur ? 'selected' : ''}>${m.name}</option>`).join('');
+}
+$('missionSel').onchange = () => {
+  const name = $('missionSel').value;
+  if (!name) return;
+  if (!confirmDiscard()) { $('missionSel').value = ''; return; }
+  loadEditor(missions.find(m => m.name === name));
+};
+$('newMissionBtn').onclick = () => { if (confirmDiscard()) { loadEditor(null); $('missionSel').value = ''; setTool('wpadd'); } };
+$('missionName').oninput = () => { editor.dirty = true; renderMissionState(); };
+$('landEnd').onchange = () => { editor.dirty = true; renderMissionState(); };
+$('addClickBtn').onclick = () => setTool(tool === 'wpadd' ? null : 'wpadd');
+$('addHereBtn').onclick = () => {
+  if (!drone.visible) { flash('Keine Drohnenpose'); return; }
+  const r = v => Math.round(v * 100) / 100;
+  editor.wps.push(newWp({ x: r(drone.position.x), y: r(drone.position.y), z: Math.max(0.5, r(drone.position.z)) }));
+  touch();
+};
+async function saveMission() {
+  const name = $('missionName').value.trim().replace(/[^\w-]/g, '_');
+  if (!name) { flash('Missionsnamen eingeben'); throw new Error('kein Name'); }
+  if (!editor.wps.length) { flash('Mission hat keine Wegpunkte'); throw new Error('leer'); }
+  if (!selectedMap) { flash('Erst eine Karte auswählen'); throw new Error('keine Karte'); }
+  await command('save_mission', { map: selectedMap, name, waypoints: editor.wps, land_at_end: $('landEnd').checked });
+  $('missionName').value = name;
+  editor.dirty = false;
+  await refreshMissions();
+  flash(`Mission „${name}“ gespeichert`);
+  return name;
+}
+$('saveMissionBtn').onclick = () => saveMission().catch(() => {});
+$('delMissionBtn').onclick = () => {
+  const name = $('missionSel').value || $('missionName').value.trim();
+  if (!missions.find(m => m.name === name)) { flash('Keine gespeicherte Mission gewählt'); return; }
+  if (confirm(`Mission „${name}“ löschen?`))
+    command('delete_mission', { map: selectedMap, name }).then(() => { loadEditor(null); refreshMissions(); });
+};
+
+// Warum kann (noch) nicht gestartet werden? Leer = startbereit.
+function startBlocker() {
+  if (!connected) return 'Keine Verbindung zum Supervisor.';
+  if (!status) return 'Warte auf Status …';
+  if (status.mode !== 'localization') return 'Erst im Tab „Betrieb“ → „Auf Karte fliegen“ starten.';
+  if (status.map !== selectedMap) return `Mission gehört zu Karte „${selectedMap}“, geflogen wird auf „${status.map}“.`;
+  if (!editor.wps.length) return 'Mission hat keine Wegpunkte.';
+  if (!$('missionName').value.trim()) return 'Missionsnamen eingeben (wird beim Start gespeichert).';
+  if (!status.ready) return 'Nicht flugbereit: ' + status.checks.filter(c => !c.ok).map(c => c.name).join(', ') + '.';
+  return '';
+}
+let lastActIdx = -1;
+function renderMissionState() {
+  if (!status) return;
+  const m = status.mission, live = !!m && LIVE.includes(m.state);
+  const blocker = live ? '' : startBlocker();
+  $('startMissionBtn').disabled = live || !!blocker;
+  $('startReason').textContent = blocker;
+  $('continueBtn').style.display = live && m.state === 'waiting' ? '' : 'none';
+  $('pauseMissionBtn').disabled = !live || m.state === 'waiting';
+  $('pauseMissionBtn').textContent = live && m.state === 'paused' ? 'Fortsetzen' : 'Pause';
+  $('abortMissionBtn').disabled = !live;
+  $('progBar').style.width = m ? `${Math.round(100 * (m.state === 'done' ? 1 : m.index / Math.max(1, m.total)))}%` : '0';
+  $('missionState').innerHTML = (m ? `<b style="color:var(--hi)">${m.name}</b> — ${m.text}` +
+    (live ? ` (Wegpunkt ${m.index + 1}/${m.total})` : '') : '') + (flashText ? `<br>${flashText}` : '');
+  const act = activeIdx();
+  if (act !== lastActIdx) { lastActIdx = act; renderWps(); }
+}
+$('startMissionBtn').onclick = async () => {
+  const air = armed ? '' : '\n\nDie Drohne ARMT und HEBT SELBSTSTÄNDIG AB!';
+  if (!confirm(`Mission „${$('missionName').value.trim()}“ mit ${editor.wps.length} Wegpunkten starten?${air}`)) return;
+  try {
+    const name = await saveMission(); // immer speichern: gestartet wird, was im Editor steht
+    setTool(null);
+    await command('start_mission', { name });
+    flash(`Mission „${name}“ gestartet`);
+  } catch { /* Meldung kam ueber flash */ }
+};
+$('continueBtn').onclick = () => command('continue_mission');
+$('pauseMissionBtn').onclick = () => command(status.mission.state === 'paused' ? 'resume_mission' : 'pause_mission');
+$('abortMissionBtn').onclick = () => { if (confirm('Mission abbrechen? Die Drohne hält ihre Position.')) command('abort_mission'); };
+
+// ================= Scan / View Planning =================
+// Parameter: [Schluessel ("config.x" = Feld aus config.toml), Beschriftung, Einheit | Optionen | 'bool', Schritt]
+const VP_PARAMS = [
+  ['Sensor', [
+    ['config.d_min', 'Arbeitsabstand min', 'm', 0.1], ['config.d_max', 'Arbeitsabstand max', 'm', 0.1],
+    ['config.fov_h_deg', 'Sichtfeld horizontal', '°', 1], ['config.fov_v_deg', 'Sichtfeld vertikal', '°', 1],
+    ['config.theta_max_deg', 'max. Einfallswinkel', '°', 5], ['config.baseline', 'Basislinie Projektor–Kamera', 'm', 0.05],
+    ['config.pitch_min_deg', 'Pitch min (0 = fest montiert)', '°', 5], ['config.pitch_max_deg', 'Pitch max', '°', 5]]],
+  ['Drohne', [
+    ['config.safety_distance', 'Sicherheitsabstand zum Objekt', 'm', 0.1],
+    ['config.use_ground_plane', 'Bodenfilter', 'bool'],
+    ['config.ground_clearance', 'Mindesthöhe über Objekt-Unterkante', 'm', 0.1]]],
+  ['Planung', [
+    ['method', 'Verfahren', ['greedy', 'ilp', 'connected']], ['time_limit', 'Zeitlimit (ilp/connected)', 's', 10],
+    ['k', 'Mehrfachabdeckung k', '×', 1], ['config.min_overlap', 'Mindest-Überlappung (Registrierung)', '', 0.05],
+    ['repair_overlap', 'Überlappung erzwingen', 'bool'], ['refine', 'Posen lokal verfeinern', 'bool']]],
+  ['Auflösung', [
+    ['voxel', 'Punkte ausdünnen', 'm', 0.05], ['poisson_depth', 'Poisson-Tiefe (Oberfläche)', '', 1],
+    ['config.resolution', 'Facettengröße', 'm', 0.05], ['config.n_azimuth', 'Kegel-Richtungen', '', 1],
+    ['config.n_distance', 'Distanzstufen', '', 1], ['config.yaw_bin_deg', 'Dedup Yaw', '°', 5]]],
+];
+let vpDefaults = null;
+const getKey = (o, k) => k.split('.').reduce((a, p) => a && a[p], o);
+const setKey = (o, k, v) => { const ps = k.split('.'), l = ps.pop(); ps.reduce((a, p) => a[p] ??= {}, o)[l] = v; };
+function renderParams(opts) {
+  $('vpParams').innerHTML = VP_PARAMS.map(([grp, ps]) => `<h3>${grp}</h3>` + ps.map(([k, label, u, step]) => {
+    const v = getKey(opts, k), id = `vp-${k}`;
+    const inp = Array.isArray(u) ? `<select id="${id}">${u.map(x => `<option ${x === v ? 'selected' : ''}>${x}</option>`).join('')}</select>`
+      : u === 'bool' ? `<input type="checkbox" id="${id}" ${v ? 'checked' : ''}>`
+      : `<input type="number" id="${id}" step="${step}" value="${v ?? ''}">`;
+    return `<label for="${id}">${label}</label>${inp}<span class="u">${Array.isArray(u) || u === 'bool' ? '' : u}</span>`;
+  }).join('')).join('');
+  for (const el of $('vpParams').querySelectorAll('input, select')) el.onchange = () => {
+    try { localStorage.setItem('vpOpts', JSON.stringify(readParams())); } catch { /* ohne Speicher */ }
+  };
+}
+function readParams() {
+  const o = {};
+  for (const [, ps] of VP_PARAMS) for (const [k, , u] of ps) {
+    const el = $(`vp-${k}`);
+    if (!el) continue;
+    setKey(o, k, u === 'bool' ? el.checked : Array.isArray(u) ? el.value : parseFloat(el.value));
+  }
+  return o;
+}
+async function initParams() {
+  try { vpDefaults = vpDefaults || await command('scan_defaults'); } catch { return; }
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem('vpOpts')); } catch { /* ohne Speicher */ }
+  renderParams(saved ? { ...vpDefaults, ...saved, config: { ...vpDefaults.config, ...saved.config } } : vpDefaults);
+}
+$('vpResetBtn').onclick = () => { try { localStorage.removeItem('vpOpts'); } catch { /* */ } if (vpDefaults) renderParams(vpDefaults); };
+
+// Box (Eingabefelder <-> 3D)
+const scanBox = new THREE.Box3Helper(new THREE.Box3(), 0x44ddff);
+scanBox.visible = false;
+scene.add(scanBox);
+const boxVals = () => ['bx0', 'bx1', 'bx2', 'bX0', 'bX1', 'bX2'].map(id => parseFloat($(id).value));
+function setBox(min, max) { ['bx0', 'bx1', 'bx2'].forEach((id, i) => $(id).value = min[i]); ['bX0', 'bX1', 'bX2'].forEach((id, i) => $(id).value = max[i]); drawBox(); }
+function drawBox() {
+  const v = boxVals();
+  scanBox.visible = curTab === 'scan' && v.every(isFinite);
+  if (scanBox.visible) scanBox.box.set(new THREE.Vector3(v[0], v[1], v[2]), new THREE.Vector3(v[3], v[4], v[5]));
+}
+for (const id of ['bx0', 'bx1', 'bx2', 'bX0', 'bX1', 'bX2']) $(id).oninput = drawBox;
+$('scanBtn').onclick = () => { if (needMap()) { showMap(selectedMap); setTool(tool === 'scan' ? null : 'scan'); } };
+$('planBtn').onclick = () => {
+  if (!needMap()) return;
+  const v = boxVals();
+  if (!v.every(isFinite)) { $('vpStats').textContent = 'Erst die Box festlegen.'; return; }
+  command('plan_scan', { map: selectedMap, min: v.slice(0, 3), max: v.slice(3), options: readParams() })
+    .then(r => { $('vpStats').textContent = `${r.name} wird geplant …`; }, e => { $('vpStats').textContent = `Fehler: ${e.message || e}`; });
+};
+
+// Ergebnis-Vorschau
+let scans = [], scanRes = null;
+const scanGroup = new THREE.Group();
+scene.add(scanGroup);
+async function refreshScans(select) {
+  if (!selectedMap) { scans = []; $('scanSel').innerHTML = ''; showScan(null); return; }
+  try { scans = (await command('list_scans', { map: selectedMap })).scans; } catch { return; }
+  const cur = select || (scanRes && scanRes.name) || '';
+  $('scanSel').innerHTML = '<option value="">— Planung wählen —</option>' + scans.map(x =>
+    `<option value="${x.name}" ${x.name === cur ? 'selected' : ''}>${x.name}${x.stats ? ` · ${x.stats.reachable} Posen · ${Math.round(100 * x.stats.coverage)} %` : ''}</option>`).join('');
+  if (select) loadScan(select);
+  else if (!scans.find(x => x.name === cur)) showScan(null);
+}
+async function loadScan(name) {
+  if (!name) { showScan(null); return; }
+  const r = await fetch(`maps/${encodeURIComponent(selectedMap)}/scans/${encodeURIComponent(name)}.json?t=${Date.now()}`);
+  if (!r.ok) { $('vpStats').textContent = `Planung ${name} nicht lesbar`; return; }
+  const res = await r.json();
+  if (res.box) setBox(res.box.min, res.box.max);
+  if (res.options && vpDefaults) renderParams({ ...vpDefaults, ...res.options, config: { ...vpDefaults.config, ...(res.options.config || {}) } });
+  showScan(res);
+}
+$('scanSel').onchange = () => loadScan($('scanSel').value);
+$('delScanBtn').onclick = () => {
+  const name = $('scanSel').value;
+  if (name && confirm(`Planung „${name}“ löschen?`))
+    command('delete_scan', { map: selectedMap, name }).then(() => { showScan(null); refreshScans(); });
+};
+const FACET_COL = [new THREE.Color(0xe86060), new THREE.Color(0xffa040), new THREE.Color(0x4cd97b)];
+function showScan(res) {
+  scanRes = res;
+  scanGroup.clear();
+  if (!res) { $('vpStats').textContent = ''; return; }
+  const st = res.stats, pct = x => `${Math.round(100 * x)} %`;
+  $('vpStats').innerHTML = `<b style="color:var(--hi)">${res.name}</b><br>` +
+    `${st.reachable} von ${st.selected} Posen erreichbar · Flugweg ${st.length_m} m<br>` +
+    `Fläche ${st.area_m2} m²: ${pct(st.coverage)} erfasst, ${pct(st.coverable)} überhaupt erfassbar<br>` +
+    `${st.points} Punkte (${st.live_points ?? 0} live) · ${st.facets} Facetten · ${st.candidates} Kandidaten · ${st.runtime_s} s`;
+  // Abdeckung: Facettenmittelpunkte eingefaerbt
+  const fc = res.facets.centers, fcol = new Float32Array(fc.length);
+  res.facets.state.forEach((s, i) => FACET_COL[s].toArray(fcol, 3 * i));
+  const fg = new THREE.BufferGeometry();
+  fg.setAttribute('position', new THREE.Float32BufferAttribute(fc, 3));
+  fg.setAttribute('color', new THREE.BufferAttribute(fcol, 3));
+  const facets = new THREE.Points(fg, new THREE.PointsMaterial({ size: 0.06, vertexColors: true }));
+  facets.name = 'facets';
+  scanGroup.add(facets);
+  const pg = new THREE.BufferGeometry();
+  pg.setAttribute('position', new THREE.Float32BufferAttribute(res.points, 3));
+  const pts = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.05, color: 0x88aacc }));
+  pts.name = 'pts';
+  scanGroup.add(pts);
+  // Posen, Sichtpyramiden (Arbeitsabstand d_opt) und Flugroute
+  const c = res.config, th = Math.tan(rad(c.fov_h_deg) / 2), tv = Math.tan(rad(c.fov_v_deg) / 2), L = c.d_opt;
+  const seg = [], route = [];
+  for (const p of res.poses) {
+    const y = rad(p.yaw_deg), pi = rad(p.pitch_deg), o = new THREE.Vector3(p.x, p.y, p.z);
+    const f = new THREE.Vector3(Math.cos(pi) * Math.cos(y), Math.cos(pi) * Math.sin(y), Math.sin(pi));
+    const r = new THREE.Vector3(Math.sin(y), -Math.cos(y), 0), u = new THREE.Vector3().crossVectors(r, f);
+    const corners = [[1, 1], [1, -1], [-1, -1], [-1, 1]].map(([a, b]) =>
+      o.clone().addScaledVector(f, L).addScaledVector(r, a * th * L).addScaledVector(u, b * tv * L));
+    corners.forEach((q, i) => seg.push(o, q, q, corners[(i + 1) % 4]));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 8),
+      new THREE.MeshBasicMaterial({ color: p.reachable ? 0x44ddff : 0xe86060 }));
+    ball.position.copy(o);
+    scanGroup.add(ball);
+    if (p.reachable) route.push(o);
+  }
+  const fr = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(seg),
+    new THREE.LineBasicMaterial({ color: 0x44ddff, transparent: true, opacity: 0.18 }));
+  fr.name = 'frusta';
+  scanGroup.add(fr);
+  scanGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(route), new THREE.LineBasicMaterial({ color: 0xe055c8 })));
+  applyScanToggles();
+}
+function applyScanToggles() {
+  scanGroup.visible = curTab === 'scan';
+  for (const [n, id] of [['facets', 'vpFacets'], ['frusta', 'vpFrusta'], ['pts', 'vpPts']]) {
+    const o = scanGroup.getObjectByName(n);
+    if (o) o.visible = $(id).checked;
+  }
+}
+for (const id of ['vpFacets', 'vpFrusta', 'vpPts']) $(id).onchange = applyScanToggles;
+$('vpToMissionBtn').onclick = () => {
+  if (!scanRes) { $('vpStats').textContent = 'Erst eine Planung wählen.'; return; }
+  const wps = scanRes.poses.filter(p => p.reachable);
+  if (!wps.length || !confirmDiscard()) return;
+  const hold = Math.max(0, parseFloat($('vpHold').value) || 0);
+  loadEditor({ name: scanRes.name, land_at_end: true,
+    waypoints: wps.map(p => ({ x: p.x, y: p.y, z: p.z, yaw_deg: p.yaw_deg, hold, confirm: false })) });
+  editor.dirty = true;
+  $('missionSel').value = '';
+  showTab('mission');
+  flash(`${wps.length} Scan-Posen übernommen — prüfen und speichern`);
+};
+function onTab(name) {
+  if (name === 'scan') { if (!vpDefaults) initParams(); if (selectedMap && shownMap !== selectedMap) showMap(selectedMap); }
+  drawBox();
+  applyScanToggles();
+}
+
+// ================= Werkzeuge (Klicks in die Szene) =================
+let tool = null, toolP0 = null;
+const TOOL = {
+  reloc: ['relocBtn', 'Startpose: Klick = Position, zweiter Klick = Blickrichtung · Esc = abbrechen'],
+  origin: ['originBtn', 'Nullpunkt: Klick = neuer Nullpunkt, zweiter Klick = Richtung der neuen x-Achse'],
+  crop: ['cropBtn', 'Ausschnitt: Klick = Ecke, zweiter Klick = gegenüberliegende Ecke (Höhe −1 … 5 m)'],
+  scan: ['scanBtn', 'Scan-Box: Klick = Ecke, zweiter Klick = gegenüberliegende Ecke · Esc = abbrechen'],
+  wpadd: ['addClickBtn', 'Wegpunkte: jeder Klick setzt einen Punkt (Höhe = Regler unten) · Esc = fertig'],
+  goto: ['gotoBtn', 'Ziel: Klick = anfliegen (Höhe = Regler unten), Blick in Flugrichtung · Esc = fertig'],
+  wpmove: [null, 'Klick = neue Position für den markierten Wegpunkt · Esc = abbrechen'],
+};
+function setTool(t) {
+  tool = t; toolP0 = null;
+  toolArrow.visible = toolBox.visible = false;
+  $('hint').style.display = t ? 'block' : 'none';
+  $('hint').textContent = t ? TOOL[t][1] : '';
+  for (const [name, [id]] of Object.entries(TOOL)) if (id) $(id).classList.toggle('active', t === name);
+}
+$('relocBtn').onclick = () => setTool(tool === 'reloc' ? null : 'reloc');
+$('originBtn').onclick = () => { if (needMap()) { showMap(selectedMap); setTool(tool === 'origin' ? null : 'origin'); } };
+$('cropBtn').onclick = () => { if (needMap()) { showMap(selectedMap); setTool(tool === 'crop' ? null : 'crop'); } };
+$('scanBtn').onclick = () => { if (needMap()) { showMap(selectedMap); setTool(tool === 'scan' ? null : 'scan'); } };
+const boxTool = () => tool === 'crop' || tool === 'scan';
+const boxZ = () => tool === 'scan' ? [parseFloat($('bx2').value), parseFloat($('bX2').value)] : [-1, 5];
+addEventListener('keydown', e => { if (e.key === 'Escape') setTool(null); });
 
 const raycaster = new THREE.Raycaster();
-renderer.domElement.addEventListener('dblclick', e => {
-  if (!goalTopic) return;
-  if (e.clientX > innerWidth - 234 && e.clientY < 234) return; // Minimap-Bereich
-  const ndc = new THREE.Vector2(e.clientX / innerWidth * 2 - 1,
-    -(e.clientY / innerHeight) * 2 + 1);
+function groundHit(e, z = 0) {
+  const ndc = new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
   raycaster.setFromCamera(ndc, camera);
-  const z = parseFloat($('goalZ').value);
   const hit = new THREE.Vector3();
-  if (!raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -z), hit)) return;
-  const yaw = Math.atan2(hit.y - drone.position.y, hit.x - drone.position.x);
-  goalTopic.publish(new ROSLIB.Message({
-    header: { frame_id: 'map', stamp: { sec: 0, nanosec: 0 } },
-    pose: { position: { x: hit.x, y: hit.y, z },
-      orientation: { x: 0, y: 0, z: Math.sin(yaw / 2), w: Math.cos(yaw / 2) } }
-  }));
-  goalMarker.position.copy(hit);
-  goalMarker.visible = true;
+  return raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -z), hit) ? hit : null;
+}
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!tool || !toolP0) return;
+  const h = groundHit(e);
+  if (!h) return;
+  if (boxTool()) {
+    const [z0, z1] = boxZ();
+    toolBox.box.set(new THREE.Vector3(Math.min(toolP0.x, h.x), Math.min(toolP0.y, h.y), z0),
+      new THREE.Vector3(Math.max(toolP0.x, h.x), Math.max(toolP0.y, h.y), z1));
+    toolBox.visible = true;
+  } else {
+    const d = h.clone().sub(toolP0);
+    if (d.length() > 0.05) toolArrow.setDirection(d.normalize());
+  }
 });
+let downXY = null; // Klick vs. Kamera-Ziehen unterscheiden
+renderer.domElement.addEventListener('pointerdown', e => { downXY = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!tool || !downXY || e.button !== 0 || Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) > 5) return;
+  if (tool === 'goto') { gotoAt(e); return; }
+  if (tool === 'wpadd' || tool === 'wpmove') {
+    const z = parseFloat($('goalZ').value), h = groundHit(e, z); // Klick trifft die Ebene in Wegpunkt-Hoehe
+    if (!h) return;
+    const p = { x: Math.round(h.x * 100) / 100, y: Math.round(h.y * 100) / 100, z };
+    if (tool === 'wpadd') editor.wps.push(newWp(p));
+    else { if (editor.wps[editor.sel]) Object.assign(editor.wps[editor.sel], p); setTool(null); }
+    touch();
+    return;
+  }
+  const h = groundHit(e);
+  if (!h) return;
+  if (!toolP0) {
+    toolP0 = h;
+    if (!boxTool()) { toolArrow.position.copy(h); toolArrow.visible = true; }
+    return;
+  }
+  const t = tool, yaw = Math.atan2(h.y - toolP0.y, h.x - toolP0.x);
+  if (t === 'reloc') command('relocalize', { x: toolP0.x, y: toolP0.y, yaw });
+  else if (t === 'origin') {
+    if (confirm(`Neuer Nullpunkt (${toolP0.x.toFixed(2)}, ${toolP0.y.toFixed(2)}), x-Achse ${deg(yaw).toFixed(0)}°?\n` +
+      'Die Karte wird neu berechnet; vorhandene Ausschnitte werden verworfen.'))
+      command('set_origin', { map: selectedMap, x: toolP0.x, y: toolP0.y, yaw_deg: deg(yaw) }).then(() => showMap(''));
+  } else if (t === 'crop') {
+    const b = toolBox.box;
+    command('add_crop', { map: selectedMap, min: b.min.toArray(), max: b.max.toArray() }).then(refreshMaps);
+  } else if (t === 'scan') {
+    const b = toolBox.box, r = v => Math.round(v * 10) / 10;
+    setBox([r(b.min.x), r(b.min.y), +$('bx2').value], [r(b.max.x), r(b.max.y), +$('bX2').value]);
+  }
+  setTool(null);
+});
+// Direktziel per Doppelklick (ohne aktives Werkzeug)
+function gotoAt(e) {
+  if (status && !status.ready && !confirm('Flugbereitschaft NICHT gegeben — Ziel trotzdem senden?')) return;
+  const z = parseFloat($('goalZ').value), hit = groundHit(e, z);
+  if (!hit) return;
+  command('goto', { x: hit.x, y: hit.y, z }).then(() => { goalMarker.position.copy(hit); goalMarker.visible = true; });
+}
+renderer.domElement.addEventListener('dblclick', e => { if (!tool) gotoAt(e); });
+// Kamera: MJPEG von web_video_server; src nur setzen solange sichtbar (sonst kein Encoding/Traffic)
+let camOn = false;
+function updateCam() {
+  const c = status && status.camera;
+  const url = camOn && c ? `http://${location.hostname}:${c.port}/stream?topic=${encodeURIComponent(c.topic)}` +
+    '&type=mjpeg&quality=60' : '';
+  if ($('camImg').dataset.url !== url) { $('camImg').dataset.url = url; $('camImg').src = url || 'data:,'; }
+  $('cam').style.display = camOn ? 'block' : 'none';
+  $('camBtn').classList.toggle('active', camOn);
+}
+$('camBtn').onclick = () => { camOn = !camOn; updateCam(); };
+let follow = false;
+$('followBtn').onclick = () => { follow = !follow; $('followBtn').classList.toggle('active', follow); };
+$('goalZ').oninput = () => $('goalZv').textContent = `${$('goalZ').value} m`;
 
-// ---------- Künstlicher Horizont ----------
+// ================= Kuenstlicher Horizont =================
 const hzC = $('horizon').getContext('2d');
 function drawHorizon(roll, pitchUp) {
-  const W = 170, R = 78, PX = 2.4; // Pixel pro Grad Pitch
+  const W = 150, R = 68, PX = 2.2;
   hzC.clearRect(0, 0, W, W);
-  hzC.save();
-  hzC.translate(W / 2, W / 2);
+  hzC.save(); hzC.translate(W / 2, W / 2);
   hzC.beginPath(); hzC.arc(0, 0, R, 0, 7); hzC.clip();
-  hzC.save();
-  hzC.rotate(-roll);
-  const off = pitchUp * 180 / Math.PI * PX;
-  hzC.fillStyle = '#2e6da8'; hzC.fillRect(-200, -200 + off, 400, 200); // Himmel
-  hzC.fillStyle = '#6e4522'; hzC.fillRect(-200, off, 400, 200);        // Boden
+  hzC.save(); hzC.rotate(-roll);
+  const off = deg(pitchUp) * PX;
+  hzC.fillStyle = '#2e6da8'; hzC.fillRect(-200, -200 + off, 400, 200);
+  hzC.fillStyle = '#6e4522'; hzC.fillRect(-200, off, 400, 200);
   hzC.strokeStyle = '#fff'; hzC.lineWidth = 2;
   hzC.beginPath(); hzC.moveTo(-200, off); hzC.lineTo(200, off); hzC.stroke();
-  hzC.lineWidth = 1; hzC.fillStyle = '#fff';
-  hzC.font = '9px sans-serif'; hzC.textAlign = 'center';
-  for (let d = -30; d <= 30; d += 10) { // Pitch-Leiter
+  hzC.lineWidth = 1; hzC.fillStyle = '#fff'; hzC.font = '9px sans-serif'; hzC.textAlign = 'center';
+  for (let d = -30; d <= 30; d += 10) {
     if (!d) continue;
-    const y = off + d * PX, w = d % 20 ? 14 : 24;
+    const y = off + d * PX, w = d % 20 ? 12 : 22;
     hzC.beginPath(); hzC.moveTo(-w, y); hzC.lineTo(w, y); hzC.stroke();
-    hzC.fillText(Math.abs(d), w + 12, y + 3);
+    hzC.fillText(Math.abs(d), w + 11, y + 3);
   }
   hzC.restore();
-  hzC.strokeStyle = '#cdd6e4'; hzC.lineWidth = 1.5; // Roll-Skala
+  hzC.strokeStyle = '#cdd6e4'; hzC.lineWidth = 1.5;
   for (const a of [-60, -45, -30, -15, 0, 15, 30, 45, 60]) {
-    const r = a * Math.PI / 180;
-    hzC.beginPath();
-    hzC.moveTo(Math.sin(r) * (R - 8), -Math.cos(r) * (R - 8));
-    hzC.lineTo(Math.sin(r) * R, -Math.cos(r) * R);
-    hzC.stroke();
+    const r = rad(a);
+    hzC.beginPath(); hzC.moveTo(Math.sin(r) * (R - 8), -Math.cos(r) * (R - 8)); hzC.lineTo(Math.sin(r) * R, -Math.cos(r) * R); hzC.stroke();
   }
-  hzC.fillStyle = '#ffd24c'; // Roll-Zeiger
+  hzC.fillStyle = '#ffd24c';
   hzC.save(); hzC.rotate(-roll);
-  hzC.beginPath(); hzC.moveTo(0, -R + 12); hzC.lineTo(-5, -R + 22);
-  hzC.lineTo(5, -R + 22); hzC.fill();
+  hzC.beginPath(); hzC.moveTo(0, -R + 12); hzC.lineTo(-5, -R + 22); hzC.lineTo(5, -R + 22); hzC.fill();
   hzC.restore();
-  hzC.strokeStyle = '#ffd24c'; hzC.lineWidth = 3; // festes Flugzeugsymbol
-  hzC.beginPath();
-  hzC.moveTo(-34, 0); hzC.lineTo(-10, 0); hzC.lineTo(-6, 6);
-  hzC.moveTo(34, 0); hzC.lineTo(10, 0); hzC.lineTo(6, 6);
-  hzC.stroke();
+  hzC.strokeStyle = '#ffd24c'; hzC.lineWidth = 3;
+  hzC.beginPath(); hzC.moveTo(-30, 0); hzC.lineTo(-9, 0); hzC.lineTo(-5, 6); hzC.moveTo(30, 0); hzC.lineTo(9, 0); hzC.lineTo(5, 6); hzC.stroke();
   hzC.fillRect(-2, -2, 4, 4);
   hzC.restore();
 }
 
-// ---------- Render-Loop ----------
+// ================= Render-Loop =================
 const CARD = ['N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW'];
-const eulTmp = new THREE.Euler();
+const eul = new THREE.Euler();
 const mainFog = scene.fog;
+let lastT = 0;
+renderWps();
 renderer.setAnimationLoop(t => {
+  const dt = Math.min(0.1, (t - lastT) / 1000); lastT = t;
   if (follow) controls.target.lerp(drone.position, 0.08);
-  ring.rotation.x = t / 600;
   controls.update();
+  goalMarker.rotation.z = t / 600;
+  for (const p of props) p.rotation.z += (armed ? 55 : 0) * dt * p.userData.cw; // Propeller drehen, wenn armed
+  shadow.position.set(drone.position.x, drone.position.y, 0.01);
+  shadow.visible = shadowPole.visible = drone.visible;
+  shadowPole.geometry.setFromPoints([new THREE.Vector3(drone.position.x, drone.position.y, 0), drone.position]);
 
-  // Instrumente (FLU: roll = x rechts-positiv, pitchUp = -y, yaw = z ENU)
-  eulTmp.setFromQuaternion(drone.quaternion, 'ZYX');
-  drawHorizon(eulTmp.x, -eulTmp.y);
-  const hdg = (90 - eulTmp.z * 180 / Math.PI + 360) % 360;
+  eul.setFromQuaternion(drone.quaternion, 'ZYX');
+  drawHorizon(eul.x, -eul.y);
+  const hdg = (90 - deg(eul.z) + 360) % 360;
   $('hdg').textContent = `${hdg.toFixed(0).padStart(3, '0')}°`;
   $('card').textContent = CARD[Math.round(hdg / 45) % 8];
   $('spd').textContent = Math.hypot(vSm.x, vSm.y).toFixed(1);
   $('vs').textContent = `${vSm.z >= 0 ? '↑' : '↓'} ${Math.abs(vSm.z).toFixed(1)}`;
-  $('vs').style.color = Math.abs(vSm.z) < 0.2 ? '' : vSm.z > 0 ? '#4cd97b' : '#ffd24c';
+  $('vs').style.color = Math.abs(vSm.z) < 0.2 ? '' : vSm.z > 0 ? 'var(--ok)' : 'var(--warn)';
   $('alt').textContent = drone.position.z.toFixed(1);
 
-  // Hauptansicht + Minimap (Scissor-Inset oben rechts, deckungsgleich mit #minimapFrame)
-  const W = innerWidth, H = innerHeight, S = 220, M = 14;
+  const W = innerWidth, H = innerHeight, S = 230, L = 14, TOP = 172;
   renderer.setScissorTest(true);
-  renderer.setViewport(0, 0, W, H);
-  renderer.setScissor(0, 0, W, H);
+  renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H);
   renderer.render(scene, camera);
   mapCam.position.set(drone.position.x, drone.position.y, drone.position.z + 60);
   mapCam.lookAt(drone.position.x, drone.position.y, drone.position.z);
   scene.fog = null;
-  renderer.setViewport(W - S - M, H - S - M, S, S);
-  renderer.setScissor(W - S - M, H - S - M, S, S);
+  renderer.setViewport(L, H - TOP - S, S, S); renderer.setScissor(L, H - TOP - S, S, S);
   renderer.render(scene, mapCam);
   scene.fog = mainFog;
   renderer.setScissorTest(false);

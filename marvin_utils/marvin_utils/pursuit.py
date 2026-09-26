@@ -31,6 +31,12 @@ Publishes:
 Parameters:
   - lookahead_dist   (float, 1.0)   Carrot-Abstand vor der Drohne [m]
   - goal_threshold   (float, 0.15)  Distanz zum Ziel zum Stoppen [m]
+  - hold_topic       (str, /marvin/hold)  std_msgs/Bool: true = Failsafe-Halt (Supervisor)
+
+Failsafe-Halt: bei Halte-Signal ODER veralteter TF map->base_link wird die aktuelle
+PX4-Position gehalten (PX4-Frame, unabhaengig von Karte/Planer). Frueher fiel pursuit
+dann auf die MAVROS-Pose als "map" zurueck — map und PX4-Frame liegen aber bis zu
+Meter/90° auseinander, der Pfad wurde in falschen Koordinaten abgeflogen.
   - publish_rate     (float, 20.0)  Setpoint-Rate [Hz]
   - tf_max_age       (float, 1.0)   Max. Alter der TF map->base_link [s]
 """
@@ -43,6 +49,7 @@ import numpy as np
 import math
 
 from geometry_msgs.msg import Point, PoseStamped
+from std_msgs.msg import Bool
 from nav_msgs.msg import Path
 from mavros_msgs.msg import PositionTarget
 from mavros_msgs.srv import SetMode
@@ -115,6 +122,7 @@ class PurePursuitTracker(Node):
         self.declare_parameter('goal_threshold', 0.15)
         self.declare_parameter('publish_rate',   20.0)
         self.declare_parameter('tf_max_age',     1.0)
+        self.declare_parameter('hold_topic',     '/marvin/hold')
 
         self.lookahead_dist = self.get_parameter('lookahead_dist').value
         self.goal_threshold = self.get_parameter('goal_threshold').value
@@ -137,6 +145,8 @@ class PurePursuitTracker(Node):
         self.offboard_set: bool = False
         self.hold_pos = None              # Haltepunkt im PX4-Frame (Ziel / Stopp-Signal)
         self.hold_yaw = 0.0
+        self.hold_req = False             # Failsafe-Halt vom Supervisor
+        self.failsafe_hold = False        # haelt gerade wegen Halte-Signal / TF-Verlust
 
         # --- QoS ---
         reliable_qos = QoSProfile(
@@ -158,6 +168,9 @@ class PurePursuitTracker(Node):
         self.pose_sub = self.create_subscription(
             PoseStamped, '/mavros/local_position/pose',
             self.pose_callback, best_effort_qos)
+
+        self.create_subscription(Bool, self.get_parameter('hold_topic').value,
+                                 lambda m: setattr(self, 'hold_req', m.data), reliable_qos)
 
         # --- Publisher ---
         self.setpoint_pub = self.create_publisher(
@@ -189,14 +202,15 @@ class PurePursuitTracker(Node):
         # Bei neuem Pfad naechstgelegenen Punkt suchen, damit wir nicht
         # rueckwaerts auf alte Pfadsegmente springen.
         new_index = 0
-        if self.drone_pose is not None:
-            pos_map, _, _ = self._pose_map()
-            new_index = self._find_closest_index(msg, pos_map)
+        pose = self._pose_map() if self.drone_pose is not None else None
+        if pose is not None:
+            new_index = self._find_closest_index(msg, pose[0])
 
         self.path = msg
         self.path_index = new_index
         self.goal_reached = False
-        self.hold_pos = None
+        if not self.failsafe_hold:  # Failsafe-Halt behaelt seinen Haltepunkt, auch bei neuem Pfad
+            self.hold_pos = None
 
         if not self.offboard_set:
             self._set_mode('OFFBOARD')
@@ -213,8 +227,7 @@ class PurePursuitTracker(Node):
         Rueckgabe (pos_map, yaw_map, dyaw): dyaw = Yaw(PX4) - Yaw(map) dreht
         map-Vektoren in den PX4-Frame. Quelle ist die TF map->base_link
         (Planner-Sicht, enthaelt Relokalisierung + FAST-LIO); ist sie stale
-        oder fehlt sie, MAVROS-Pose mit dyaw=0 — dann faellt auch der Planner
-        auf dieselbe Pose zurueck und beide bleiben konsistent.
+        oder fehlt sie: None (Aufrufer haelt Position, siehe Failsafe-Halt).
         """
         mav = self.drone_pose.pose
         try:
@@ -229,7 +242,7 @@ class PurePursuitTracker(Node):
                 return np.array([t.x, t.y, t.z]), yaw_map, dyaw
         except Exception:  # noqa: B902 — tf2 wirft diverse Exception-Typen
             pass
-        return pt(mav.position), quat_to_yaw(mav.orientation), 0.0
+        return None
 
     def _map_to_px4(self, x_map, pos_map, dyaw: float) -> np.ndarray:
         """Punkt aus map in den PX4-Frame: um die Drohne drehen + verschieben."""
@@ -252,7 +265,24 @@ class PurePursuitTracker(Node):
             self._publish_position(self.hold_pos, self.hold_yaw)
             return
 
-        pos_map, yaw_map, dyaw = self._pose_map()
+        pose = None if self.hold_req else self._pose_map()
+        if pose is None:
+            if not self.failsafe_hold or self.hold_pos is None:
+                self.get_logger().warn('Failsafe-Halt (' + ('Signal' if self.hold_req else 'TF map->base_link veraltet')
+                                       + ') — halte PX4-Position')
+                self.failsafe_hold = True
+                p = self.drone_pose.pose.position  # Kopie: Haltepunkt darf nicht mit der Pose wandern
+                self.hold_pos = Point(x=p.x, y=p.y, z=p.z)
+                self.hold_yaw = quat_to_yaw(self.drone_pose.pose.orientation)
+            self._publish_position(self.hold_pos, self.hold_yaw)
+            return
+        if self.failsafe_hold:
+            self.get_logger().info('Failsafe-Halt aufgehoben — folge wieder dem Pfad')
+            self.failsafe_hold = False
+            self.hold_pos = None
+            self.path_index = self._find_closest_index(self.path, pose[0])
+
+        pos_map, yaw_map, dyaw = pose
         poses = self.path.poses
         goal = pt(poses[-1].pose.position)
         dist_goal = float(np.linalg.norm(goal - pos_map))

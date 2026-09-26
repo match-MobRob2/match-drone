@@ -1,7 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, TimerAction, DeclareLaunchArgument
 from launch_ros.actions import Node
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, TextSubstitution
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -61,9 +61,10 @@ def generate_launch_description():
 
     gz_sim_resource_path = f"{px4_gz_worlds}:{px4_gz_plugins}"
 
-    world = f"{marvin_models_path}/worlds/scale2.sdf"
-
-    print(f"World: {world}")
+    # Welt aus marvin_models/worlds/<world>.sdf — derselbe Name geht als
+    # PX4_GZ_WORLD an marvin_drohne_alles.launch.py, muss also zusammenpassen
+    world = [TextSubstitution(text=f"{marvin_models_path}/worlds/"),
+             LaunchConfiguration("world"), TextSubstitution(text=".sdf")]
 
 
 
@@ -72,20 +73,15 @@ def generate_launch_description():
     # PX4_HOME_LON = "10.05284961998495"
 
     return LaunchDescription([
+        DeclareLaunchArgument("world", default_value="scale3",
+                              description="Weltname = marvin_models/worlds/<world>.sdf"),
 
         #Gazebo starten
         ExecuteProcess(
             name="gazebo_server",
             cmd=[
                 "bash", "-c",
-                f"echo $PX4_GZ_MODELS && "
-                f"echo $PX4_GZ_WORLDS && "
-                f"echo $PX4_GZ_PLUGINS && "
-                f"echo $PX4_GZ_SERVER_CONFIG && "
-                f"echo $GZ_SIM_RESOURCE_PATH && "
-                f"echo $GZ_SIM_SYSTEM_PLUGIN_PATH && "
-                f"echo $GZ_SIM_SERVER_CONFIG_PATH && "
-                f"gz sim -r -s {world}"
+                [TextSubstitution(text="gz sim -r -s "), *world],
             ],
             additional_env = {
                 "PX4_GZ_MODELS": px4_gz_models,

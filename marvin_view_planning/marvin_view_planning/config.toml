@@ -1,0 +1,98 @@
+# Constraints des 3D-Solver-Skeletts (vpp3d).
+#
+# Eigenstaendige Konfiguration des alternativen Ansatzes, 3D-Portierung von
+# ../vpp2d/config.toml. Bewusst getrennt von der grossen Pipeline-Config
+# (../config.toml), damit der Prototyp self-contained bleibt. Distanzen in
+# Metern, Winkel in Grad.
+#
+# Gegenueber dem 2D-Prototyp kommt die dritte Dimension hinzu: die Drohne ist
+# 4-DoF unteraktuiert (x, y, z, yaw). Roll ist gesperrt, Pitch wird auf den
+# Gimbal-Bereich geklemmt. Das Sichtfeld ist eine Pyramide (horizontal x
+# vertikal), die duale Sicht prueft Projektor UND Kamera per Raycast gegen das
+# Dreiecksnetz.
+#
+# Kein Tracking-/Standortmodell: Repositionierung wird nicht optimiert.
+
+[working_distance]
+# Arbeitsvolumen des Streifenprojektors: nahe/ferne Distanzgrenze [m].
+d_min = 2.8
+d_max = 3.2
+# Soll-Standoff [m] fuer die Kandidatenplatzierung. Auskommentiert -> Mittelwert.
+# d_opt = 3.0
+
+[fov]
+# Sichtfeld der Sensorpyramide [Grad], volle Oeffnungswinkel (horizontal/vertikal).
+fov_h_deg = 40.0
+fov_v_deg = 30.0
+
+[sensor]
+# Basislinie zwischen Projektor und Kamera des Streifenlichtsystems [m].
+# Ein Scan ist nur gueltig, wenn *beide* (Projektor UND Kamera) die Facette
+# unverdeckt und im Sichtfeld sehen ("duale Sicht"). baseline = 0 -> klassische
+# Einzelsicht (Ablation). Die Kamera sitzt um baseline seitlich (entlang der
+# right-Achse des Sensorrahmens) versetzt.
+baseline = 0.4
+
+[incidence]
+# Maximaler Einfallswinkel zwischen Sichtstrahl und Facetten-Normale [Grad].
+theta_max_deg = 60.0
+
+[orientation]
+# Erlaubter Anstellbereich (Pitch) des Sensors [Grad]. Schritt [3] klemmt den
+# idealen (frontalen) Pitch auf [pitch_min, pitch_max] und verwirft Posen, bei
+# denen die Facette nach der Klemmung aus dem vertikalen Sichtfeld faellt.
+#   pitch < 0 : Sensor schaut nach unten   (Drohne ueber dem Objekt)
+#   pitch > 0 : Sensor schaut nach oben
+pitch_min_deg = -10.0
+pitch_max_deg = 10.0
+
+[drone]
+# Mindest-Sicherheitsabstand der Drohne zum Messobjekt [m].
+safety_distance = 1.5
+# Bodenebene-Filter: niedrigstes z des Messobjekts gilt als Boden; Posen muessen
+# mindestens ground_clearance darueber liegen. Mit false deaktivieren.
+use_ground_plane = true
+ground_clearance = 1.0   # Mindesthoehe der Drohne ueber der Bodenebene [m]
+
+[sampling]
+# Abtastung der zulaessigen Posenregion je Facette (Schritt [2]).
+# Kegel-Sampling um die Facetten-Normale: ein frontaler Strahl plus Azimut-Ringe
+# bei Bruchteilen von theta_max (cone_fractions) mit je n_azimuth Richtungen,
+# kombiniert mit Distanz-Stuetzstellen in [d_min, d_max].
+n_azimuth = 8
+cone_fractions = [0.0, 0.5, 0.85]
+n_distance = 2
+# Dedup-Aufloesung der Projektion (Schritt [3]): Ortsraster [m], Yaw- und
+# Pitch-Bin [Grad]. Auskommentiertes voxel -> 0.15 * d_opt.
+# voxel = 0.45
+yaw_bin_deg = 15.0
+pitch_bin_deg = 10.0
+# Facetten-Aufloesung der Szene: Soll-Kantenlaenge der Dreiecke [m].
+resolution = 0.25
+
+[registration]
+# Overlap-Schwelle des Registrierungsgraphen (overlap.py / setcover.py):
+# Flaechen-Anteil, den zwei Scans teilen muessen, damit sie als paarweise
+# registrierbar gelten (Kante im Graphen) -- bezogen auf den *kleineren* der
+# beiden Scans. Bei uniformer Diskretisierung ist die Facettenzahl proportional
+# zur Flaeche, d. h. min_overlap = 0.25 heisst "25 % der Flaeche des kleineren
+# Scans werden auch vom Nachbarn gesehen". Der Registrierungsgraph muss
+# zusammenhaengend sein; ist er es nicht, ergaenzt ensure_connected Bruecken
+# (bzw. connected_set_cover_ilp erzwingt den Zusammenhang direkt).
+min_overlap = 0.25
+# Footprint-Erosion [m] (erosion.py): > 0 erodiert jeden Kandidaten-Footprint
+# vor dem Set Cover um diesen Rand. Benachbarte Scans ueberlappen dann per
+# Konstruktion um ein Band ~2*erosion (Side-Lap-Prinzip); auf zusammenhaengenden
+# Flaechen haengt der Registrierungsgraph zusammen, ensure_connected wird zum
+# reinen Sicherheitsnetz (0 Bruecken erwartet). 0 = aus. CLI-Override: --erode.
+erosion = 0.0
+
+[tracking]
+# Bodengebundene, mobile Tracking-Roboter (kabelgebundene Sensoren). Jede
+# gewaehlte Drohnenpose muss von >= 1 Standort mit *freier Sichtlinie* (LoS,
+# Raycast gegen das Messobjekt) und im Arbeitsabstand erfasst werden. Minimale
+# Standortmenge = Set Cover (tracking.py).
+range_min = 1.0          # min. Abstand Tracker <-> Drohne [m]
+range_max = 8.0          # max. Abstand Tracker <-> Drohne [m]
+grid_step = 0.5          # Aufloesung des Boden-Kandidatenrasters [m]
+margin = 2.0             # Rand, um den das Raster ueber die Posen-Huelle hinausgeht [m]

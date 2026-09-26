@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>marvin_ui</name>
+  <version>0.1.0</version>
+  <description>Marvin Ground Control: Web-Oberflaeche + Supervisor (Stack starten/stoppen, Karten, Relokalisierung, Flugbereitschaft)</description>
+  <maintainer email="luca0204@freenet.de">luca</maintainer>
+  <license>TODO</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>marvin_msgs</exec_depend>
+  <exec_depend>marvin_launch</exec_depend>
+  <exec_depend>marvin_nav</exec_depend>
+  <exec_depend>marvin_view_planning</exec_depend>
+  <exec_depend>mavros_msgs</exec_depend>
+  <exec_depend>rosbridge_server</exec_depend>
+  <exec_depend>web_video_server</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>sensor_msgs_py</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

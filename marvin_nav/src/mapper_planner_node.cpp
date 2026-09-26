@@ -31,7 +31,10 @@ double yawFromQuat(const geometry_msgs::msg::Quaternion& q) {
 
 NavNode::NavNode() : Node("nav_node") {
     const auto cloud_topic = declare_parameter("cloud_topic", std::string("/cloud_merged"));
-    sensor_frame_ = declare_parameter("sensor_frame", std::string(""));
+    lidar_.sensor_frame = declare_parameter("sensor_frame", std::string(""));
+    // Optionale Tiefenkamera, nur Nahbereich (camera_max_range_); leer = aus
+    const auto camera_topic = declare_parameter("camera_topic", std::string(""));
+    camera_.sensor_frame = declare_parameter("camera_frame", std::string(""));
     map_file_ = declare_parameter("map_file", std::string(""));
 
     tree_ = std::make_unique<octomap::OcTree>(map_res_);
@@ -54,9 +57,13 @@ NavNode::NavNode() : Node("nav_node") {
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(get_clock());
     tf_listener_ = std::make_unique<tf2_ros::TransformListener>(*tf_buffer_);
 
-    cloud_sub_ = create_subscription<sensor_msgs::msg::PointCloud2>(
-        cloud_topic, rclcpp::SensorDataQoS().keep_last(2),
-        std::bind(&NavNode::cloudCallback, this, std::placeholders::_1));
+    for (auto [topic, src] : {std::pair{cloud_topic, &lidar_}, std::pair{camera_topic, &camera_}}) {
+        if (topic.empty()) continue;
+        src->sub = create_subscription<sensor_msgs::msg::PointCloud2>(
+            topic, rclcpp::SensorDataQoS().keep_last(2),
+            [this, src](sensor_msgs::msg::PointCloud2::SharedPtr msg) { cloudCallback(msg, *src); });
+        RCLCPP_INFO(get_logger(), "OctoMap-Quelle: %s (max %.0f m)", topic.c_str(), src->max_range);
+    }
 
     octomap_pub_ = create_publisher<octomap_msgs::msg::Octomap>(
         "/octomap_binary", rclcpp::QoS(1).transient_local());
@@ -91,15 +98,15 @@ NavNode::NavNode() : Node("nav_node") {
 
 // --- Mapping ---
 
-void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) {
+void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg, CloudSource& src) {
     // ponytail: feste Insertionsrate ~2.5 Hz — Raycasting ist der teure Teil,
     // bei <1 m/s Fluggeschwindigkeit reicht das dicke
     // Node-Uhr statt msg->header.stamp: manche Sensor-Bridges stempeln nicht
     // sauber (bleibt 0 oder springt nicht) — Throttle würde dann nach dem
     // ersten Insert für immer verriegeln
     const rclcpp::Time stamp = now();
-    if (last_insert_time_.nanoseconds() > 0 &&
-        (stamp - last_insert_time_).seconds() < insert_min_period_)
+    if (src.last_insert.nanoseconds() > 0 &&
+        (stamp - src.last_insert).seconds() < insert_min_period_)
         return;
 
     // Cloud nach map transformieren; Sensor-Ursprung fürs Raycasting separat,
@@ -107,7 +114,7 @@ void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) 
     // Odom-Frame, nicht den Sensor
     geometry_msgs::msg::TransformStamped cloud_tf, origin_tf;
     const std::string origin_frame =
-        sensor_frame_.empty() ? msg->header.frame_id : sensor_frame_;
+        src.sensor_frame.empty() ? msg->header.frame_id : src.sensor_frame;
     try {
         // Neuestes TF statt exaktem Stempel (wie updateDronePoseFromTf) — sonst
         // "extrapolation into the future" bei jeder TF-Publish-Lücke > Timeout
@@ -120,7 +127,7 @@ void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) 
             "Cloud verworfen — kein TF nach map: %s", e.what());
         return;
     }
-    last_insert_time_ = stamp;
+    src.last_insert = stamp;
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::fromROSMsg(*msg, *cloud);
@@ -163,7 +170,7 @@ void NavNode::cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg) 
         origin_tf.transform.translation.x,
         origin_tf.transform.translation.y,
         origin_tf.transform.translation.z);
-    tree_->insertPointCloud(oc, origin, max_range_, false, true);
+    tree_->insertPointCloud(oc, origin, src.max_range, false, true);
     octomap_updated_ = true;
 
     if (++inserts_since_publish_ >= publish_every_n_inserts_) {
@@ -262,6 +269,13 @@ void NavNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
     if (q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w < 1e-6)
         q.w = 1.0;
 
+    const double z = std::clamp(msg->pose.position.z, min_flight_z_, max_flight_z_);
+    if (z != msg->pose.position.z) {
+        RCLCPP_WARN(get_logger(), "Ziel-z %.2f ausserhalb [%.1f, %.1f] — auf %.2f begrenzt",
+            msg->pose.position.z, min_flight_z_, max_flight_z_, z);
+        msg->pose.position.z = z;
+    }
+
     RCLCPP_INFO(get_logger(), "Zielpose empfangen: (%.2f, %.2f, %.2f, Yaw %.1f°)",
         msg->pose.position.x, msg->pose.position.y, msg->pose.position.z,
         yawFromQuat(q) * 180.0 / M_PI);
@@ -270,6 +284,23 @@ void NavNode::goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg)
     if (state_ == State::NAVIGATING && !isGoalDifferent(*msg)) {
         RCLCPP_INFO(get_logger(), "Neues Ziel zu nah am aktuellen — ignoriert");
         return;
+    }
+
+    // Ziele ausserhalb der bekannten Karte abweisen: Unbekanntes ist befahrbar, sonst
+    // fliegt die Drohne ins Ungemappte, bis Waende sie stoppen (Sim: 20 m Richtung
+    // (40,40) ausserhalb der Halle). ponytail: Bounding-Box statt Erreichbarkeit —
+    // ein Ziel hinter einer Wand innerhalb der Box plant weiter gegen die Wand.
+    if (tree_ && tree_->size() > 0) {
+        double x0, y0, z0, x1, y1, z1;
+        tree_->getMetricMin(x0, y0, z0);
+        tree_->getMetricMax(x1, y1, z1);
+        const auto& g = msg->pose.position;
+        constexpr double margin = 1.0;
+        if (g.x < x0 - margin || g.x > x1 + margin || g.y < y0 - margin || g.y > y1 + margin) {
+            RCLCPP_WARN(get_logger(), "Ziel (%.1f, %.1f) ausserhalb der Karte [%.0f..%.0f] x [%.0f..%.0f] — abgewiesen",
+                g.x, g.y, x0, x1, y0, y1);
+            return;
+        }
     }
 
     goal_pose_ = *msg;
@@ -312,7 +343,7 @@ void NavNode::replanTimerCallback() {
         RCLCPP_DEBUG(get_logger(), "Globaler Pfad frei — committed, kein Replan (%.2f m)", dist);
         return;
     }
-    RCLCPP_INFO(get_logger(), "Globaler Pfad blockiert/leer — Replan (%.2f m)", dist);
+    RCLCPP_INFO(get_logger(), "Globaler Pfad blockiert/leer — Replan");
     AstarPlanner();
 }
 
@@ -432,9 +463,21 @@ void NavNode::AstarPlanner() {
     using KeyHash = octomap::OcTreeKey::KeyHash;
     std::unordered_map<octomap::OcTreeKey, double, KeyHash> cost_cache;
 
+    // Hoehenband wie lokal: ausserhalb nur gesperrt, was weiter weg liegt als die Drohne
+    auto bandOut = [&](double z) {
+        return std::max({0.0, min_flight_z_ - z, z - max_flight_z_});
+    };
+    const double start_out = bandOut(drone_pose_.pose.position.z);
+
     auto voxel_cost = [&](const octomap::OcTreeKey& k) -> double {
         auto it = cost_cache.find(k);
         if (it != cost_cache.end()) return it->second;
+
+        const double out = bandOut(tree_->keyToCoord(k, search_depth).z());
+        if (out > 0.0 && out > start_out - 1e-6) {
+            cost_cache[k] = -1.0;
+            return -1.0;  // ausserhalb des Hoehenbands
+        }
 
         // Inflation: nur Occupied-Check
         for (int dx = -inflate_r; dx <= inflate_r; ++dx) {
@@ -986,9 +1029,19 @@ void NavNode::localPlanner() {
         return std::sqrt(dx*dx + dy*dy + dz*dz);
     };
 
+    // Abstand einer Hoehe zum Flughoehen-Band (0 = im Band)
+    auto bandOut = [&](double z) {
+        return std::max({0.0, min_flight_z_ - z, z - max_flight_z_});
+    };
+    // Startet die Drohne ausserhalb des Bands (Takeoff-Ueberschwinger, Wind), darf
+    // sie zurueck: gesperrt ist nur, was weiter vom Band weg liegt als der Start
+    const double start_out = bandOut(oz + (sz + 0.5) * esdf_res_);
+
     // Traversal-Kosten: Bewegung + ESDF-Penalty + Unknown-Penalty
     auto traversalCost = [&](const Cell& c, double move_dist) -> double {
         const int idx = (c.z * ny + c.y) * nx + c.x;
+        const double out = bandOut(oz + (c.z + 0.5) * esdf_res_);
+        if (out > 0.0 && out > start_out - 1e-6) return 1e10;  // Hoehenband
         double d = std::sqrt(esdf_grid_[idx]) * esdf_res_;
         if (d < block_dist) return 1e10;  // Quasi-blockiert
         double penalty = 0.0;
@@ -998,6 +1051,10 @@ void NavNode::localPlanner() {
         }
         // Gleiche Unknown-Politik wie der globale Planer: erlaubt, aber bestraft
         if (esdf_unknown_[idx]) penalty += unknown_penalty_weight_;
+        // Hoehe des globalen Pfads halten (lokales Ziel liegt darauf): ohne diesen
+        // Term flog die Drohne im Median 0.6 m ueber der Route (Ausweichen nach oben
+        // ist gratis, Steigen/Sinken kostet Zeit)
+        penalty += altitude_weight_ * std::abs(c.z - goal.z) * esdf_res_;
         return move_dist + penalty;
     };
 

@@ -1,0 +1,7 @@
+# Generisches Kommando an marvin_supervisor (Web-UI -> rosbridge -> Supervisor)
+# request:  JSON, z.B. {"cmd": "start_localization", "map": "scale3", "x": 0, "y": 0, "yaw": 0}
+string request
+---
+bool success
+# JSON-Antwort bzw. Fehlermeldung
+string response

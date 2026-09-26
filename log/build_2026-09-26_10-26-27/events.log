@@ -1,0 +1,21 @@
+[0.000000] (-) TimerEvent: {}
+[0.000691] (-) JobUnselected: {'identifier': 'db_tsdf'}
+[0.000824] (-) JobUnselected: {'identifier': 'fast_lio'}
+[0.000951] (-) JobUnselected: {'identifier': 'gz_ros2_control'}
+[0.001002] (-) JobUnselected: {'identifier': 'gz_ros2_control_demos'}
+[0.001045] (-) JobUnselected: {'identifier': 'gz_ros2_control_tests'}
+[0.001088] (-) JobUnselected: {'identifier': 'ign_ros2_control'}
+[0.001133] (-) JobUnselected: {'identifier': 'ign_ros2_control_demos'}
+[0.001223] (-) JobUnselected: {'identifier': 'livox_ros_driver2'}
+[0.001290] (-) JobUnselected: {'identifier': 'marvin_baby'}
+[0.001334] (-) JobUnselected: {'identifier': 'marvin_control'}
+[0.001375] (-) JobUnselected: {'identifier': 'marvin_launch'}
+[0.001443] (-) JobUnselected: {'identifier': 'marvin_models'}
+[0.001501] (-) JobUnselected: {'identifier': 'marvin_msgs'}
+[0.001592] (-) JobUnselected: {'identifier': 'marvin_nav'}
+[0.001640] (-) JobUnselected: {'identifier': 'marvin_utils'}
+[0.001736] (-) JobUnselected: {'identifier': 'marvin_view_planning'}
+[0.001808] (marvin_ui) JobQueued: {'identifier': 'marvin_ui', 'dependencies': OrderedDict([('marvin_control', '/mnt/daten/match_drone/src/install/marvin_control'), ('marvin_msgs', '/mnt/daten/match_drone/src/install/marvin_msgs'), ('marvin_nav', '/mnt/daten/match_drone/src/install/marvin_nav'), ('marvin_view_planning', '/mnt/daten/match_drone/src/install/marvin_view_planning'), ('marvin_launch', '/mnt/daten/match_drone/src/install/marvin_launch')])}
+[0.001874] (marvin_ui) JobStarted: {'identifier': 'marvin_ui'}
+[0.009121] (marvin_ui) JobEnded: {'identifier': 'marvin_ui', 'rc': 1}
+[0.019649] (-) EventReactorShutdown: {}

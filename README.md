@@ -30,6 +30,8 @@ ROS2-based autonomous UAV simulation system integrating PX4 SITL, Gazebo Harmoni
 
 **Tech Stack:** ROS2 Humble · PX4 SITL · Gazebo Harmonic · Ubuntu 22.04
 
+**Start commands (sim + real drone):** [docs/Starten.md](docs/Starten.md)
+
 ---
 
 ## Technical Demos

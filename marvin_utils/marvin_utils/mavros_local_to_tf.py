@@ -19,7 +19,8 @@ class LocalPoseToTF(Node):
             qos
         )
         self.br = TransformBroadcaster(self)
-        self.base_link_frame = 'base_link'
+        # Sim: 'body' (marvin_drohne_alles haengt base_link statisch an body)
+        self.base_link_frame = self.declare_parameter('child_frame', 'base_link').value
         self.map_frame = 'map'
 
     def cb_pose(self, msg: PoseStamped):

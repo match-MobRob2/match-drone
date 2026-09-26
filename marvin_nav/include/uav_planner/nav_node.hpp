@@ -27,25 +27,31 @@ public:
 
 private:
     // --- Mapping: OctoMap in-process (ersetzt octomap_server) ---
-    void cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg);
+    // Eine Wolken-Quelle (Lidar = Hauptquelle, Kamera = Nahbereich/tote Winkel)
+    struct CloudSource {
+        std::string sensor_frame;   // Frame des Sensor-Ursprungs; leer = Frame der Cloud
+        double max_range;           // Punkte weiter weg: nur Freiraum, nicht belegt [m]
+        rclcpp::Time last_insert{0, 0, RCL_ROS_TIME};
+        rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub;
+    };
+    void cloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr msg, CloudSource& src);
     void saveMapCallback(const std::shared_ptr<std_srvs::srv::Trigger::Request> req,
                          std::shared_ptr<std_srvs::srv::Trigger::Response> res);
     void publishOctomap();
 
     std::unique_ptr<octomap::OcTree> tree_;
-    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+    CloudSource lidar_{"", lidar_max_range_}, camera_{"", camera_max_range_};
     rclcpp::Publisher<octomap_msgs::msg::Octomap>::SharedPtr octomap_pub_;
     // Besetzte Voxel-Zentren für RViz (PointCloud2-Display, kein Octomap-Plugin nötig)
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr octomap_points_pub_;
     rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr save_map_srv_;
     std::string map_file_;       // .bt laden beim Start / speichern via ~/save_map
-    std::string sensor_frame_;   // Frame des Sensor-Ursprungs; leer = Frame der Cloud
-    rclcpp::Time last_insert_time_{0, 0, RCL_ROS_TIME};
     int inserts_since_publish_ = 0;
 
     // Sensor-Modell — identisch zum vorher getunten octomap_server-Setup
     static constexpr double map_res_ = 0.3;                 // OctoMap Voxelgröße [m]
-    static constexpr double max_range_ = 25.0;              // Maximale Sensor-Reichweite [m]
+    static constexpr double lidar_max_range_ = 25.0;        // Maximale Lidar-Reichweite [m]
+    static constexpr double camera_max_range_ = 3.0;        // Tiefenkamera: dahinter zu verrauscht [m]
     static constexpr double prob_hit_ = 0.75;               // Wahrscheinlichkeit für belegte Voxel
     static constexpr double prob_miss_ = 0.25;              // Wahrscheinlichkeit für freie Voxel
     static constexpr double clamp_min_ = 0.2;               // Minimale log-odds Wahrscheinlichkeit
@@ -88,6 +94,12 @@ private:
     static constexpr double goal_change_thresh_ = 0.5;   // Neues Ziel muss so weit abweichen
     static constexpr double goal_yaw_thresh_ = 0.2;      // ... oder im Yaw abweichen [rad]
     static constexpr double unknown_penalty_weight_ = 0.3; // Kosten für unbekannte Voxel (global UND lokal)
+    // Flughoehen-Band im map-Frame (z=0 = Sensorhoehe beim Mapping-Start, ~0.3 m
+    // ueber Boden). Unbekannter Raum ist befahrbar -> ohne Deckel plant A* ueber
+    // Hindernisse hinweg in ungemappte Hoehen (Sim: 3.8 m). Global + lokal + Ziel.
+    // ponytail: fest fuer die Halle; bei anderen Deckenhoehen hier anpassen.
+    static constexpr double min_flight_z_ = 0.3;
+    static constexpr double max_flight_z_ = 3.0;
     static constexpr double tf_pose_max_age_ = 1.0;      // TF map->base_link älter als das [s] = stale -> Topic-Fallback
 
     // --- ESDF (lokales Fenster) ---
@@ -132,6 +144,7 @@ private:
 
     static constexpr double safety_dist_ = 1.5;             // Sicherheitsabstand [m]
     static constexpr double obstacle_penalty_weight_ = 80.0;
+    static constexpr double altitude_weight_ = 1.0;         // Kosten je m Hoehenabweichung zum lokalen Ziel, pro Zelle
     static constexpr double hard_collision_dist_ = 0.6;    // Absoluter Mindestabstand [m]
     static constexpr int smooth_iterations_ = 30;
     static constexpr double smooth_weight_ = 0.3;           // Glättungsgewicht

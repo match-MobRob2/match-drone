@@ -58,6 +58,12 @@ class FastlioToPx4(Node):
         self.declare_parameter('mount_roll', 0.0)
         self.declare_parameter('mount_pitch', 1.0647)
         self.declare_parameter('mount_yaw', 0.0)
+        # Plausibilitaet: schneller als das kann die Drohne nicht (MPC_XY_VEL_MAX 1.5).
+        # Divergiert FAST-LIO, stoppt die Bruecke dauerhaft -> PX4 verliert Vision
+        # und geht in den Failsafe, statt dem Phantom hinterherzufliegen.
+        self.max_speed = self.declare_parameter('max_speed', 5.0).value  # [m/s]
+        self.last = None  # (t, x, y, z)
+        self.dead = False
 
         in_topic = self.get_parameter('input_topic').value
         out_topic = self.get_parameter('output_topic').value
@@ -82,8 +88,22 @@ class FastlioToPx4(Node):
         )
 
     def callback(self, msg):
+        if self.dead:
+            return
+        p = msg.pose.pose.position
+        t = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+        if self.last is not None and t > self.last[0]:
+            v = math.dist((p.x, p.y, p.z), self.last[1:]) / (t - self.last[0])
+            if v > self.max_speed:
+                self.dead = True
+                self.get_logger().fatal(
+                    f'FAST-LIO unplausibel ({v:.1f} m/s > {self.max_speed} m/s) — Vision-Weitergabe '
+                    f'an PX4 GESTOPPT. PX4 geht in den Failsafe. Neustart noetig.')
+                return
+        self.last = (t, p.x, p.y, p.z)
         out = Odometry()
-        out.header.stamp = self.get_clock().now().to_msg()
+        # Messzeit behalten, damit EKF2 die Latenz (EKF2_EV_DELAY) kompensieren kann
+        out.header.stamp = msg.header.stamp
         out.header.frame_id = self.frame_id          # gelevelter Welt-Frame (ENU)
         out.child_frame_id = self.child_frame_id     # base_link
 
